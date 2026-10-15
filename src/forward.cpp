@@ -14,6 +14,7 @@ Result run_forward(const Configuration& cfg, const InitialState& initial) {
     Result output;
     const auto count = static_cast<std::size_t>(cfg.steps + 1);
     output.time.resize(count);
+    output.inlet_pressure.assign(count, cfg.demand.inlet_pressure);
     output.inlet_flow.resize(count);
     output.outlet_flow.resize(count);
     output.outlet_pressure.resize(count);

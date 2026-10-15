@@ -18,7 +18,8 @@ struct Result {
     int info{};
     int completed_steps{};
     double max_mass_defect{};
-    std::vector<double> time, inlet_flow, outlet_flow, outlet_pressure, linepack;
+    std::vector<double> time, inlet_pressure, inlet_flow;
+    std::vector<double> outlet_flow, outlet_pressure, linepack;
     std::vector<double> final_pressure, final_flow;
     double final_inlet_flow{};
 };

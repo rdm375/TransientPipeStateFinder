@@ -14,7 +14,10 @@ if(NOT TARGET pipe_sim_cpp_core)
   message(FATAL_ERROR "Expected target pipe_sim_cpp_core missing from forward solver")
 endif()
 
-add_library(tpsf_forward STATIC src/forward.cpp)
+add_library(tpsf_forward STATIC
+    src/forward.cpp
+    src/scheduled_forward.cpp
+)
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
 target_compile_features(tpsf_forward PUBLIC cxx_std_20)
@@ -58,4 +61,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_observations
         COMMAND tpsf_observations_test)
+endif()
+
+
+# E2.3 — Scheduled boundary integration
+add_executable(tpsf_scheduled_forward_test
+    tests/cpp/scheduled_forward_test.cpp)
+
+target_link_libraries(tpsf_scheduled_forward_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_scheduled_forward
+        COMMAND tpsf_scheduled_forward_test)
 endif()
