@@ -21,6 +21,21 @@ struct ForecastSensitivityPoint {
     double outlet_pressure_unresolved = 0.0;
 };
 
+struct ForecastTangentHistory {
+    // One physical tangent state per forecast time level.
+    std::vector<Eigen::VectorXd> states;
+
+    double maximum_equation_residual = 0.0;
+    double maximum_mass_balance_defect = 0.0;
+};
+
+// Propagate one physical initial-state tangent through the
+// nominal forecast using exact discrete JVPs.
+ForecastTangentHistory propagate_forecast_tangent(
+    const FullSpaceTrajectory& nominal_forecast,
+    const Eigen::VectorXd& initial_direction,
+    const pipe_sim::TransientParameters& parameters);
+
 struct ForecastAttenuationResult {
     std::vector<ForecastSensitivityPoint> points;
     double maximum_mass_defect = 0.0;

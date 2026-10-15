@@ -58,6 +58,10 @@ public:
     std::vector<double> coordinates(
         const FullSpaceTrajectory& trajectory) const;
 
+    // Exact derivative of the affine scaled-coordinate map.
+    FullSpaceTrajectoryDirection trajectory_direction(
+        const std::vector<double>& direction) const;
+
     FullSpaceProblemEvaluation evaluate(
         const std::vector<double>& u) const;
 

@@ -308,6 +308,16 @@ std::vector<double> FullSpaceProblem::coordinates(
     return u;
 }
 
+FullSpaceTrajectoryDirection
+FullSpaceProblem::trajectory_direction(
+    const std::vector<double>& direction) const
+{
+    return direction_from_flat(
+        expand_direction(direction),
+        configuration_.reference.n,
+        configuration_.reference.states.size());
+}
+
 std::vector<double> FullSpaceProblem::expand_direction(
     const std::vector<double>& direction) const
 {

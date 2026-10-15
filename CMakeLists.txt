@@ -457,3 +457,18 @@ if(BUILD_TESTING)
         NAME tpsf_forecast_attenuation
         COMMAND tpsf_forecast_attenuation_test)
 endif()
+
+
+# E5.4 — Independent tangent-linear forecast verification.
+add_executable(tpsf_forecast_tangent_validation_test
+    tests/cpp/forecast_tangent_validation_test.cpp)
+
+target_link_libraries(
+    tpsf_forecast_tangent_validation_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_forecast_tangent_validation
+        COMMAND tpsf_forecast_tangent_validation_test)
+endif()

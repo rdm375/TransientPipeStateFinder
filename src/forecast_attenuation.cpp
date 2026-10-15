@@ -57,12 +57,7 @@ double linepack_direction(
     return par.area*par.dx*crho*weighted;
 }
 
-struct TangentHistory {
-    std::vector<Eigen::VectorXd> states;
-    double maximum_residual = 0.0;
-};
-
-TangentHistory propagate(
+ForecastTangentHistory propagate_internal(
     const FullSpaceTrajectory& nominal,
     const Eigen::VectorXd& initial_direction,
     const pipe_sim::TransientParameters& par)
@@ -74,7 +69,7 @@ TangentHistory propagate(
         throw std::invalid_argument(
             "Incorrect initial tangent dimension");
 
-    TangentHistory result;
+    ForecastTangentHistory result;
     result.states.push_back(initial_direction);
 
     const PhysicalBoundaryInputs zero_inputs{};
@@ -143,8 +138,8 @@ TangentHistory propagate(
         const double residual =
             (A*next-rhs).lpNorm<Eigen::Infinity>();
 
-        result.maximum_residual =
-            std::max(result.maximum_residual, residual);
+        result.maximum_equation_residual =
+            std::max(result.maximum_equation_residual, residual);
 
         result.states.push_back(next);
     }
@@ -171,17 +166,12 @@ void accumulate_basis(
         // Its exact directional derivative is therefore
         // trajectory(u+v)-trajectory(u), with no truncation
         // error or numerical differentiation of the model.
-        const auto displaced =
-            problem.trajectory(
-                as_std(coordinates+basis.col(j)));
+        const auto direction =
+            problem.trajectory_direction(
+                as_std(basis.col(j)));
 
-        const auto& base = reconstruction.states.back();
-        const auto& shifted = displaced.states.back();
-
-        Eigen::VectorXd initial(width);
-
-        for (Eigen::Index i = 0; i < width; ++i)
-            initial[i] = shifted[i]-base[i];
+        const Eigen::VectorXd initial =
+            as_eigen(direction.states.back());
 
         // The prescribed inlet pressure is fixed during
         // forecast differentiation.
@@ -193,11 +183,12 @@ void accumulate_basis(
                 "Tangent changes prescribed forecast inlet pressure");
 
         const auto history =
-            propagate(forecast, initial, par);
+            propagate_forecast_tangent(
+                forecast, initial, par);
 
         maximum_residual =
             std::max(maximum_residual,
-                     history.maximum_residual);
+                     history.maximum_equation_residual);
 
         for (std::size_t k = 0;
              k < history.states.size(); ++k) {
@@ -218,6 +209,56 @@ void accumulate_basis(
 }
 
 } // namespace
+
+ForecastTangentHistory propagate_forecast_tangent(
+    const FullSpaceTrajectory& nominal_forecast,
+    const Eigen::VectorXd& initial_direction,
+    const pipe_sim::TransientParameters& parameters)
+{
+    auto result = propagate_internal(
+        nominal_forecast, initial_direction, parameters);
+
+    const double dt = parameters.dt;
+    const double theta = parameters.theta;
+
+    if (!std::isfinite(dt) || dt <= 0.0 ||
+        !std::isfinite(theta) ||
+        theta < 0.0 || theta > 1.0)
+        throw std::invalid_argument(
+            "Invalid tangent conservation parameters");
+
+    const int n = nominal_forecast.n;
+
+    for (std::size_t k = 0;
+         k + 1 < result.states.size(); ++k) {
+
+        const auto old_tangent = as_std(result.states[k]);
+        const auto new_tangent = as_std(result.states[k+1]);
+
+        const double old_mass =
+            linepack_direction(old_tangent, n, parameters);
+
+        const double new_mass =
+            linepack_direction(new_tangent, n, parameters);
+
+        // State index 1 is inlet mass flow.
+        // Future outlet-flow perturbations are zero.
+        const double old_inlet = old_tangent[1];
+        const double new_inlet = new_tangent[1];
+
+        const double defect =
+            (new_mass-old_mass)/dt
+            - theta*new_inlet
+            - (1.0-theta)*old_inlet;
+
+        result.maximum_mass_balance_defect =
+            std::max(
+                result.maximum_mass_balance_defect,
+                std::abs(defect));
+    }
+
+    return result;
+}
 
 ForecastAttenuationResult assess_forecast_attenuation(
     const FullSpaceProblem& problem,
