@@ -37,3 +37,16 @@ if(BUILD_TESTING)
         NAME tpsf_scaled_state
         COMMAND tpsf_scaled_state_test)
 endif()
+
+# E2.2 — Boundary observation model
+add_executable(tpsf_observations_test
+    tests/cpp/observations_test.cpp)
+
+target_link_libraries(tpsf_observations_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_observations
+        COMMAND tpsf_observations_test)
+endif()
