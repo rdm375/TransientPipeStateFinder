@@ -240,3 +240,33 @@ if(BUILD_TESTING)
         NAME tpsf_full_space_problem
         COMMAND tpsf_full_space_problem_test)
 endif()
+
+
+# E2.4b.11a — Dense reference constrained least-squares solver.
+# Eigen is intentionally not a dependency of tpsf_forward.
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+add_library(tpsf_dense_solver STATIC
+    src/dense_constrained_least_squares.cpp)
+
+target_include_directories(tpsf_dense_solver
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+target_link_libraries(tpsf_dense_solver
+    PUBLIC Eigen3::Eigen)
+
+target_compile_features(tpsf_dense_solver
+    PUBLIC cxx_std_20)
+
+
+add_executable(tpsf_dense_constrained_least_squares_test
+    tests/cpp/dense_constrained_least_squares_test.cpp)
+
+target_link_libraries(tpsf_dense_constrained_least_squares_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_dense_constrained_least_squares
+        COMMAND tpsf_dense_constrained_least_squares_test)
+endif()
