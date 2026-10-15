@@ -209,6 +209,134 @@ void diagnose_rank_sensitivity(
     }
 }
 
+
+void verify_reduced_solver(
+    const tpsf::FullSpaceProblem& problem)
+{
+    using namespace tpsf;
+
+    const Eigen::Index n =
+        static_cast<Eigen::Index>(
+            problem.free_variable_count());
+
+    const auto dense =
+        assemble_dense_full_space_subproblem(
+            problem, Eigen::VectorXd::Zero(n));
+
+    const Eigen::MatrixXd& A =
+        dense.constraint_jacobian;
+
+    const Eigen::MatrixXd& B =
+        dense.measurement_jacobian;
+
+    const Eigen::VectorXd& c =
+        dense.constraint_residual;
+
+    const Eigen::VectorXd& r =
+        dense.measurement_residual;
+
+    DenseConstrainedLeastSquaresOptions options;
+    options.relative_rank_tolerance = 1e-12;
+
+    const auto result =
+        solve_dense_constrained_least_squares(
+            A, c, B, r, options);
+
+    require(
+        result.linearized_constraints_compatible,
+        "Pipeline linearization incompatible");
+
+    const Eigen::VectorXd d = result.step;
+
+    const double feasibility =
+        (A*d+c).norm();
+
+    const double measurement =
+        (B*d+r).norm();
+
+    std::cout
+        << "\n=== E4.3a reduced solver ===\n"
+        << "constraint_rank="
+        << result.constraint_rank << '\n'
+        << "reduced_measurement_rank="
+        << result.reduced_measurement_rank << '\n'
+        << "unresolved_directions="
+        << result.unresolved_directions << '\n'
+        << "constraint_residual="
+        << feasibility << '\n'
+        << "measurement_residual="
+        << measurement << '\n'
+        << "step_norm="
+        << d.norm() << '\n';
+
+    // Recover a numerical basis for the feasible directions.
+    Eigen::JacobiSVD<Eigen::MatrixXd> asvd(
+        A, Eigen::ComputeFullV);
+
+    const Eigen::Index rank_A =
+        numerical_rank(A, 1e-12).rank;
+
+    const Eigen::MatrixXd Z =
+        asvd.matrixV().rightCols(n-rank_A);
+
+    const Eigen::MatrixXd BZ = B*Z;
+
+    // The right null space of BZ consists of directions
+    // invisible to both constraints and measurements.
+    Eigen::JacobiSVD<Eigen::MatrixXd> bsvd(
+        BZ, Eigen::ComputeFullV);
+
+    const Eigen::Index rank_BZ =
+        numerical_rank(BZ, 1e-12).rank;
+
+    const Eigen::MatrixXd N =
+        Z*bsvd.matrixV().rightCols(
+            Z.cols()-rank_BZ);
+
+    require(
+        N.cols() ==
+            static_cast<Eigen::Index>(
+                result.unresolved_directions),
+        "Unresolved dimension mismatch");
+
+    require(
+        (A*N).norm() < 1e-8,
+        "Unidentified directions violate constraints");
+
+    require(
+        (B*N).norm() < 1e-8,
+        "Unidentified directions affect measurements");
+
+    // The minimum-norm solution is orthogonal to the
+    // unresolved null space in scaled coordinates.
+    require(
+        (N.transpose()*d).norm() <
+            1e-8*std::max(1.0, d.norm()),
+        "Solver did not select minimum-norm correction");
+
+    if (N.cols() > 0) {
+        const Eigen::VectorXd alternative =
+            d+N.col(0);
+
+        require(
+            alternative.norm() >= d.norm()-1e-10,
+            "Null-space perturbation reduced step norm");
+
+        require(
+            (A*alternative+c).norm() <=
+                feasibility+1e-8,
+            "Null-space perturbation changed feasibility");
+
+        require(
+            (B*alternative+r).norm() <=
+                measurement+1e-8,
+            "Null-space perturbation changed measurement fit");
+    }
+
+    std::cout
+        << "PASS E4.3a reduced-space minimum-norm parity\n";
+}
+
 void diagnose(
     const std::string& name,
     const tpsf::FullSpaceProblem& problem,
@@ -429,6 +557,8 @@ int main()
 
         diagnose_rank_sensitivity(
             "no measurements", unobserved);
+
+        verify_reduced_solver(ordinary);
 
         std::cout
             << "\nPASS E4.2b/E4.2c KKT structure diagnostic\n";
