@@ -15,6 +15,8 @@ namespace tpsf {
 struct EngineeringProvenance {
     std::string statefinder_revision = "unknown";
     std::string solver_revision = "unknown";
+    std::string statefinder_source_sha256 = "unknown";
+    std::string solver_source_sha256 = "unknown";
 
     std::string validated_solver_baseline =
         "670ac493e4461e678ca66f2254dc3d402df3f312";

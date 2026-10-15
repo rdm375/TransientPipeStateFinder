@@ -205,6 +205,10 @@ std::string engineering_report_json(
         << quoted(p.statefinder_revision) << ",\n";
     out << "    \"solver_revision\": "
         << quoted(p.solver_revision) << ",\n";
+    out << "    \"statefinder_source_sha256\": "
+        << quoted(p.statefinder_source_sha256) << ",\n";
+    out << "    \"solver_source_sha256\": "
+        << quoted(p.solver_source_sha256) << ",\n";
     out << "    \"validated_solver_baseline\": "
         << quoted(p.validated_solver_baseline) << ",\n";
     out << "    \"statefinder_dirty\": "
@@ -456,6 +460,10 @@ std::string engineering_report_markdown(
         << p.statefinder_revision << "`\n";
     out << "- Solver revision: `"
         << p.solver_revision << "`\n";
+    out << "- StateFinder source SHA-256: `"
+        << p.statefinder_source_sha256 << "`\n";
+    out << "- Solver source SHA-256: `"
+        << p.solver_source_sha256 << "`\n";
     out << "- Validated solver baseline: `"
         << p.validated_solver_baseline << "`\n";
     out << "- Statefinder working tree modified: "

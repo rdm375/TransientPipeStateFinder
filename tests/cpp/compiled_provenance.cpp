@@ -5,6 +5,8 @@ int main() {
     const auto p = tpsf::compiled_engineering_provenance();
     assert(!p.statefinder_revision.empty());
     assert(!p.solver_revision.empty());
+    assert(p.statefinder_source_sha256.size() == 64);
+    assert(p.solver_source_sha256.size() == 64);
     assert(!p.compiler.empty());
     assert(!p.build_type.empty());
     return 0;
