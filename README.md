@@ -46,7 +46,7 @@ Implemented capabilities include:
 | Restart horizon | 4 seconds |
 | Pressure tolerance | 10,000 Pa (10 kPa; approximately 1.45 psi) |
 | Pressure tolerance relative to 6.9 MPa reference pressure | Approximately 0.145% |
-| Mass-flow tolerance | 0.1 kg/s |
+| Mass-flow tolerance | 0.1 kg/s (approximately 0.2205 lbm/s, or 794 lbm/hr) |
 | Reconstruction convergence | 8/8 |
 | Qualified candidates | 8/8 |
 | Earliest tested qualifying time | 1 second |
@@ -89,6 +89,55 @@ relative to the amplitude of a small transient.
 
 The 10 kPa tolerance is an experimental R5.1 choice, not a universally
 applicable pipeline engineering acceptance standard.
+
+**Mass-flow tolerance and operating scale.** The R5.1 mass-flow
+acceptance tolerance is
+
+```math
+\varepsilon_{\dot m}
+=0.1\;\mathrm{kg/s}
+\approx0.2205\;\mathrm{lbm/s}
+\approx794\;\mathrm{lbm/hr}.
+```
+
+For scale only, consider an *illustrative* reference mass flow of
+$10\;\mathrm{kg/s}\approx22.05\;\mathrm{lbm/s}$. The current tolerance
+would then be 1% of that reference flow. This reference value is
+**not asserted to be the operating flow of the R5.1 simulation**;
+the actual scenario reference should replace it once verified.
+A relative tolerance based on this example is not an additional
+implemented acceptance criterion.
+
+**Pipeline inventory (linepack) and operating scale.** Inventory is a
+*mass*, not a mass-flow rate. Convert it using
+
+```math
+M_{\mathrm{lbm}}=2.20462262\,M_{\mathrm{kg}}.
+```
+
+For example, an *illustrative* inventory of
+$100{,}000\;\mathrm{kg}$ corresponds to approximately
+$220{,}462\;\mathrm{lbm}$. A hypothetical 1% inventory error would
+be $1{,}000\;\mathrm{kg}\approx2{,}205\;\mathrm{lbm}$.
+These are examples, **not measured R5.1 inventory values or
+established inventory-error tolerances**.
+
+Inventory changes according to the difference between inlet and
+outlet mass flows. In the conservative discrete model,
+
+```math
+\frac{M^{k+1}-M^k}{\Delta t}
+=\dot m_{\mathrm{in}}^\theta-\dot m_{\mathrm{out}}^\theta.
+```
+
+Thus a sustained imbalance of $0.1\;\mathrm{kg/s}$
+($0.2205\;\mathrm{lbm/s}$) would change inventory by
+$360\;\mathrm{kg}\approx794\;\mathrm{lbm}$ over one hour,
+if that imbalance remained constant. This is a *physical inventory
+change*, not necessarily a numerical conservation defect.
+The existing R5.1 qualification metric tests pressure and
+mass-flow prediction errors; it does not impose a separate
+inventory-error acceptance threshold.
 
 ## Next Research Milestone: R5.2
 
@@ -1513,6 +1562,14 @@ The exact discrete residual, including boundary half-cell
 contributions, is defined by the external forward solver.
 
 #### 4.4 Pipeline Inventory and Mass Conservation
+
+Inventory is measured in kilograms (kg), or pounds mass (lbm)
+in U.S. customary units. Mass flow is measured in kg/s or lbm/s.
+For numerical interpretation, $1\;\mathrm{kg}\approx
+2.20462\;\mathrm{lbm}$; see the R5.1 operating-scale
+examples above. Do not confuse lbm (mass) with lbf (force).
+
+
 
 Define the pipeline mass inventory
 
