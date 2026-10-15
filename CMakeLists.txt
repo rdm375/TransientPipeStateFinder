@@ -24,6 +24,7 @@ add_library(tpsf_forward STATIC
     src/full_space_tangent.cpp
     src/full_space_adjoint.cpp
     src/full_space_trajectory.cpp
+    src/full_space_trajectory_derivatives.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -191,4 +192,19 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_scored_trajectory
         COMMAND tpsf_scored_trajectory_test)
+endif()
+
+
+# E2.4b.8 — Exact trajectory-level tangent and adjoint
+add_executable(tpsf_full_space_trajectory_derivatives_test
+    tests/cpp/full_space_trajectory_derivatives_test.cpp)
+
+target_link_libraries(
+    tpsf_full_space_trajectory_derivatives_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_trajectory_derivatives
+        COMMAND tpsf_full_space_trajectory_derivatives_test)
 endif()
