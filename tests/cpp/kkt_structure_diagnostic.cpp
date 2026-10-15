@@ -8,6 +8,8 @@
 #undef main
 
 #include <Eigen/SVD>
+#include "tpsf/minres.hpp"
+#include "tpsf/matrix_free_kkt.hpp"
 
 #include <iomanip>
 #include <limits>
@@ -337,6 +339,170 @@ void verify_reduced_solver(
         << "PASS E4.3a reduced-space minimum-norm parity\n";
 }
 
+
+void diagnose_pipeline_minres(
+    const std::string& name,
+    const tpsf::FullSpaceProblem& problem)
+{
+    using namespace tpsf;
+
+    const Eigen::Index n =
+        static_cast<Eigen::Index>(
+            problem.free_variable_count());
+
+    const Eigen::Index m =
+        static_cast<Eigen::Index>(
+            problem.constraint_count());
+
+    const Eigen::VectorXd u = Eigen::VectorXd::Zero(n);
+
+    const auto dense =
+        assemble_dense_full_space_subproblem(problem, u);
+
+    const Eigen::MatrixXd& A =
+        dense.constraint_jacobian;
+
+    const Eigen::MatrixXd& B =
+        dense.measurement_jacobian;
+
+    const Eigen::VectorXd& c =
+        dense.constraint_residual;
+
+    const Eigen::VectorXd& r =
+        dense.measurement_residual;
+
+    DenseConstrainedLeastSquaresOptions dense_options;
+    dense_options.relative_rank_tolerance = 1e-12;
+
+    const auto reference =
+        solve_dense_constrained_least_squares(
+            A, c, B, r, dense_options);
+
+    require(
+        reference.linearized_constraints_compatible,
+        "Dense reference linearization incompatible");
+
+    const std::vector<double> coordinates(
+        static_cast<std::size_t>(n), 0.0);
+
+    const MatrixFreeKKT kkt(problem, coordinates);
+
+    const auto rhs = kkt.right_hand_side();
+
+    require(
+        rhs.size() == static_cast<std::size_t>(n+m),
+        "Incorrect matrix-free KKT RHS dimension");
+
+    const auto apply =
+        [&kkt](const KrylovVector& x) {
+            return kkt.apply(x);
+        };
+
+    MinresOptions options;
+    options.max_iterations = 2000;
+    options.relative_tolerance = 1e-10;
+    options.absolute_tolerance = 1e-12;
+
+    const auto result =
+        solve_minres(apply, rhs, options);
+
+    require(
+        result.solution.size() ==
+            static_cast<std::size_t>(n+m),
+        "Incorrect MINRES solution dimension");
+
+    const Eigen::Map<const Eigen::VectorXd> solution(
+        result.solution.data(), n+m);
+
+    const Eigen::VectorXd d = solution.head(n);
+    const Eigen::VectorXd lambda = solution.tail(m);
+
+    Eigen::MatrixXd K =
+        Eigen::MatrixXd::Zero(n+m,n+m);
+
+    K.topLeftCorner(n,n) = B.transpose()*B;
+    K.topRightCorner(n,m) = A.transpose();
+    K.bottomLeftCorner(m,n) = A;
+
+    Eigen::VectorXd dense_rhs(n+m);
+    dense_rhs.head(n) = -B.transpose()*r;
+    dense_rhs.tail(m) = -c;
+
+    const double kkt_residual =
+        (K*solution-dense_rhs).norm();
+
+    const double feasibility =
+        (A*d+c).norm();
+
+    const double measurement =
+        (B*d+r).norm();
+
+    const double reference_feasibility =
+        (A*reference.step+c).norm();
+
+    const double reference_measurement =
+        (B*reference.step+r).norm();
+
+    const double step_difference =
+        (d-reference.step).norm();
+
+    const double stationarity =
+        (B.transpose()*(B*d+r)+A.transpose()*lambda).norm();
+
+    std::cout
+        << "\n=== E4.3b.2 MINRES pipeline: "
+        << name << " ===\n"
+        << "status=" << static_cast<int>(result.status)
+        << " iterations=" << result.iterations << '\n'
+        << "initial_residual="
+        << result.initial_residual_norm << '\n'
+        << "reported_final_residual="
+        << result.final_residual_norm << '\n'
+        << "independent_dense_KKT_residual="
+        << kkt_residual << '\n'
+        << "stationarity_residual="
+        << stationarity << '\n'
+        << "constraint_residual="
+        << feasibility << '\n'
+        << "measurement_residual="
+        << measurement << '\n'
+        << "reference_constraint_residual="
+        << reference_feasibility << '\n'
+        << "reference_measurement_residual="
+        << reference_measurement << '\n'
+        << "MINRES_step_norm="
+        << d.norm() << '\n'
+        << "reference_step_norm="
+        << reference.step.norm() << '\n'
+        << "step_difference="
+        << step_difference << '\n'
+        << "unresolved_directions="
+        << reference.unresolved_directions << '\n';
+
+    require(
+        std::isfinite(kkt_residual) &&
+        std::isfinite(feasibility) &&
+        std::isfinite(measurement) &&
+        std::isfinite(step_difference),
+        "Nonfinite pipeline MINRES diagnostic");
+
+    const double reported_difference =
+        std::abs(
+            kkt_residual-result.final_residual_norm);
+
+    require(
+        reported_difference <=
+            1e-6*std::max({
+                1.0,
+                kkt_residual,
+                result.final_residual_norm
+            }),
+        "MINRES reported and independent residuals disagree");
+
+    std::cout
+        << "PASS E4.3b.2 pipeline MINRES diagnostic\n";
+}
+
 void diagnose(
     const std::string& name,
     const tpsf::FullSpaceProblem& problem,
@@ -559,6 +725,10 @@ int main()
             "no measurements", unobserved);
 
         verify_reduced_solver(ordinary);
+
+        diagnose_pipeline_minres("ordinary", ordinary);
+        diagnose_pipeline_minres(
+            "no measurements", unobserved);
 
         std::cout
             << "\nPASS E4.2b/E4.2c KKT structure diagnostic\n";
