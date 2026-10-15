@@ -252,7 +252,8 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 add_library(tpsf_dense_solver STATIC
     src/dense_constrained_least_squares.cpp
     src/dense_full_space_subproblem.cpp
-    src/dense_full_space_sqp.cpp)
+    src/dense_full_space_sqp.cpp
+    src/statefinding_quality.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -396,4 +397,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_minres
         COMMAND tpsf_minres_test)
+endif()
+
+
+# E5.1 — Statefinding quality and local observability.
+add_executable(tpsf_statefinding_quality_test
+    tests/cpp/statefinding_quality_test.cpp)
+
+target_link_libraries(tpsf_statefinding_quality_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_statefinding_quality
+        COMMAND tpsf_statefinding_quality_test)
 endif()
