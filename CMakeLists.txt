@@ -600,3 +600,15 @@ if(BUILD_TESTING)
         NAME tpsf_measurement_sufficiency
         COMMAND tpsf_measurement_sufficiency_experiment)
 endif()
+
+# E5.7c — Decision sufficiency with incomplete state identifiability.
+add_executable(tpsf_decision_sufficiency_experiment
+    tests/cpp/decision_sufficiency_experiment.cpp)
+
+target_link_libraries(tpsf_decision_sufficiency_experiment
+    PRIVATE tpsf_dense_solver tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(NAME tpsf_decision_sufficiency
+        COMMAND tpsf_decision_sufficiency_experiment)
+endif()
