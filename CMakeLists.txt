@@ -254,7 +254,8 @@ add_library(tpsf_dense_solver STATIC
     src/dense_full_space_subproblem.cpp
     src/dense_full_space_sqp.cpp
     src/statefinding_quality.cpp
-    src/engineering_sensitivity.cpp)
+    src/engineering_sensitivity.cpp
+    src/measurement_uncertainty.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -426,4 +427,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_engineering_sensitivity
         COMMAND tpsf_engineering_sensitivity_test)
+endif()
+
+
+# E5.3 — Measurement uncertainty propagation.
+add_executable(tpsf_measurement_uncertainty_test
+    tests/cpp/measurement_uncertainty_test.cpp)
+
+target_link_libraries(tpsf_measurement_uncertainty_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_uncertainty
+        COMMAND tpsf_measurement_uncertainty_test)
 endif()
