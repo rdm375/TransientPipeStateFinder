@@ -1,4 +1,6 @@
 #include "tpsf/dense_full_space_sqp.hpp"
+#include "tpsf/dense_full_space_subproblem.hpp"
+#include "tpsf/forecast_continuation.hpp"
 #include "tpsf/forecast_directional_uncertainty.hpp"
 #include "tpsf/measurement_information.hpp"
 #include "tpsf/pipeline_decision.hpp"
@@ -150,6 +152,92 @@ void run_case(const char* label,
         problem, solution.coordinates, quality, forecast_cfg,
         future, decision_options);
     const auto& d = decision.directional;
+    // E5.9a: independent nonlinear finite-amplitude validation.
+    // The directions are scaled full-space coordinates. Map their
+    // terminal physical-state increments into the original solver.
+    // Do not modify future boundary controls.
+    if (expected_rank == 1) {
+        const auto assembled = assemble_dense_full_space_subproblem(
+            problem, solution.coordinates);
+        const auto information = decompose_measurement_information(
+            assembled.measurement_jacobian, quality.feasible_basis,
+            quality.relative_rank_tolerance);
+        require(information.resolved_basis.cols() == 1 &&
+                information.unresolved_basis.cols() == 1,
+                "Expected one resolved and one unresolved direction");
+        const auto nominal_initial = initial_state_from_full_space(
+            reconstructed, reconstructed.states.size()-1);
+        const auto nominal_forward = run_forward_scheduled(
+            forecast_cfg, nominal_initial, future);
+        require(nominal_forward.info == 0,
+                "Nonlinear nominal forecast failed");
+
+        auto check_direction = [&](const char* name,
+                                   const Eigen::VectorXd& basis,
+                                   const Eigen::VectorXd& predicted) {
+            const std::vector<double> basis_coordinates(
+                basis.data(), basis.data()+basis.size());
+            const auto mapped = problem.trajectory_direction(
+                basis_coordinates);
+            const auto& physical = mapped.states.back();
+            require(physical.size() == 6,
+                    "Unexpected terminal physical state size");
+            require(std::abs(physical[0]) < 1.0e-7,
+                    "Direction changes fixed inlet pressure");
+            require(predicted.size() ==
+                    static_cast<Eigen::Index>(nominal_forward.outlet_pressure.size()),
+                    "Nonlinear forecast output length mismatch");
+
+            auto perturb = [&](double h) {
+                InitialState state = nominal_initial;
+                state.pressure[0] += h*physical[0];
+                state.inlet_flow += h*physical[1];
+                for (int i=0; i<2; ++i) {
+                    state.flow[i] += h*physical[2*i+2];
+                    state.pressure[i+1] += h*physical[2*i+3];
+                }
+                return state;
+            };
+
+            for (double h : {1.0e-2, 1.0e-3, 1.0e-4}) {
+                const auto plus = run_forward_scheduled(
+                    forecast_cfg, perturb(h), future);
+                const auto minus = run_forward_scheduled(
+                    forecast_cfg, perturb(-h), future);
+                require(plus.info == 0 && minus.info == 0,
+                        "Perturbed nonlinear forecast failed");
+                double derivative_error = 0.0;
+                double remainder = 0.0;
+                double sensitivity_scale = 0.0;
+                for (Eigen::Index k=0; k<predicted.size(); ++k) {
+                    const auto j = static_cast<std::size_t>(k);
+                    const double derivative =
+                        (plus.outlet_pressure[j]-minus.outlet_pressure[j])/(2*h);
+                    derivative_error = std::max(derivative_error,
+                        std::abs(derivative-predicted[k]));
+                    remainder = std::max(remainder, std::abs(
+                        plus.outlet_pressure[j]-nominal_forward.outlet_pressure[j]
+                        -h*predicted[k]));
+                    sensitivity_scale = std::max(sensitivity_scale,
+                        std::abs(predicted[k]));
+                }
+                // Small-h cancellation limits absolute derivative accuracy.
+                // The tolerance is deliberately reported alongside raw errors.
+                require(derivative_error <=
+                        2.0e-2+1.0e-3*sensitivity_scale,
+                        "Nonlinear centered derivative disagrees with tangent");
+                std::cout << "  e59a_" << name << "_h=" << h
+                          << " derivative_error_pa_per_coordinate="
+                          << derivative_error
+                          << " finite_remainder_pa=" << remainder << '\n';
+            }
+        };
+        check_direction("resolved", information.resolved_basis.col(0),
+                        d.resolved_sensitivity.col(0));
+        check_direction("unresolved", information.unresolved_basis.col(0),
+                        d.unresolved_sensitivity.col(0));
+        std::cout << "  e59a_nonlinear_directional_validation=PASS\n";
+    }
     require(d.unresolved_sensitivity.cols() ==
             static_cast<Eigen::Index>(quality.unresolved_directions),
             "Unresolved sensitivity dimension mismatch");
