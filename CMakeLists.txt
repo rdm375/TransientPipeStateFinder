@@ -260,7 +260,8 @@ add_library(tpsf_dense_solver STATIC
     src/decision_reliability.cpp
     src/pipeline_decision.cpp
     src/measurement_information.cpp
-    src/forecast_directional_uncertainty.cpp)
+    src/forecast_directional_uncertainty.cpp
+    src/sensitivity_decay.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -540,3 +541,22 @@ add_test(
     NAME tpsf_measurement_geometry
     COMMAND tpsf_measurement_geometry_test
 )
+
+
+# E5.6a: persistent sensitivity attenuation diagnostics
+add_executable(
+    tpsf_sensitivity_decay_test
+    tests/cpp/sensitivity_decay_test.cpp
+)
+
+target_link_libraries(
+    tpsf_sensitivity_decay_test
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_sensitivity_decay
+        COMMAND tpsf_sensitivity_decay_test
+    )
+endif()
