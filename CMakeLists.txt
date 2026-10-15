@@ -626,3 +626,24 @@ if(BUILD_TESTING)
         NAME tpsf_measurement_design
         COMMAND tpsf_measurement_design_experiment)
 endif()
+
+
+# R1-R3 integrated engineering demonstration
+
+add_executable(
+    tpsf_engineering_demo
+    apps/engineering_demo.cpp
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_engineering_demo
+        COMMAND tpsf_engineering_demo
+            "${CMAKE_CURRENT_BINARY_DIR}/engineering-demo-test"
+    )
+endif()
