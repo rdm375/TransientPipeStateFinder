@@ -29,6 +29,7 @@ add_library(tpsf_forward STATIC
     src/full_space_measurement_objective.cpp
     src/full_space_problem.cpp
     src/matrix_free_kkt.cpp
+    src/minres.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -382,4 +383,17 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_kkt_structure_diagnostic
         COMMAND tpsf_kkt_structure_diagnostic)
+endif()
+
+# E4.3b.1 — Matrix-free symmetric Krylov solver.
+add_executable(tpsf_minres_test
+    tests/cpp/minres_test.cpp)
+
+target_link_libraries(tpsf_minres_test
+    PRIVATE tpsf_forward Eigen3::Eigen)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_minres
+        COMMAND tpsf_minres_test)
 endif()
