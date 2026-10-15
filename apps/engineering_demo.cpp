@@ -1,6 +1,8 @@
 
 #include "tpsf/dense_full_space_sqp.hpp"
 #include "tpsf/decision_timescales.hpp"
+#include "tpsf/engineering_report.hpp"
+#include "tpsf/decision_boundary_sweep.hpp"
 #include "tpsf/forecast_attenuation.hpp"
 #include "tpsf/sensitivity_decay.hpp"
 #include "tpsf/physical_boundary_channels.hpp"
@@ -773,6 +775,144 @@ int main(int argc, char** argv)
             quality,
             decision,
             memory);
+
+        // R3.1 reusable engineering reporting.
+        EngineeringReport assessment;
+
+        assessment.quality = quality;
+        assessment.decision = decision;
+
+        assessment.scenario.cells = cfg.cells;
+        assessment.scenario.reconstruction_steps = cfg.steps;
+        assessment.scenario.forecast_steps =
+            forecast_configuration.steps;
+
+        assessment.scenario.dt = cfg.parameters.dt;
+        assessment.scenario.theta = cfg.parameters.theta;
+
+        assessment.scenario.minimum_outlet_pressure_pa =
+            decision_options.minimum_outlet_pressure_pa;
+
+        assessment.scenario.measurement_radius =
+            decision_options.measurement_radius;
+
+        assessment.scenario.bound_unresolved =
+            decision_options.bound_unresolved;
+
+        assessment.scenario.unresolved_radius =
+            decision_options.unresolved_radius;
+
+        // The synthetic demonstration has four available
+        // channels at every reconstruction time level.
+        for (std::size_t k = 0;
+             k < truth.states.size(); ++k) {
+
+            EngineeringMeasurement measurement;
+
+            measurement.available = {
+                true, true, true, true
+            };
+
+            measurement.sigma = {
+                1.0e3, 0.1, 1.0e3, 0.1
+            };
+
+            assessment.scenario.measurements.push_back(
+                measurement);
+        }
+
+        assessment.maximum_memory_tangent_residual =
+            memory.maximum_tangent_residual;
+
+        assessment.maximum_memory_mass_defect =
+            memory.maximum_tangent_mass_defect;
+
+        std::vector<double> memory_times;
+        std::vector<double> state_gains;
+        std::vector<double> boundary_gains;
+        std::vector<double> outlet_gains;
+
+        for (const auto& sample : memory.samples) {
+            memory_times.push_back(sample.time);
+            state_gains.push_back(sample.state_gain);
+            boundary_gains.push_back(sample.boundary_gain);
+            outlet_gains.push_back(
+                sample.outlet_pressure_gain);
+        }
+
+        SensitivityDecayOptions attenuation_options;
+        attenuation_options.relative_threshold = 0.05;
+
+        const auto state_attenuation =
+            assess_sensitivity_decay(
+                memory_times,
+                state_gains,
+                attenuation_options);
+
+        const auto boundary_attenuation =
+            assess_sensitivity_decay(
+                memory_times,
+                boundary_gains,
+                attenuation_options);
+
+        const auto outlet_attenuation =
+            assess_sensitivity_decay(
+                memory_times,
+                outlet_gains,
+                attenuation_options);
+
+        assessment.state_attenuation_time =
+            state_attenuation.relative.time;
+
+        assessment.boundary_attenuation_time =
+            boundary_attenuation.relative.time;
+
+        assessment.outlet_attenuation_time =
+            outlet_attenuation.relative.time;
+
+        // Actual source revisions remain unknown until
+        // provenance is supplied by a verified build step.
+        // Never equate the validated baseline with the
+        // revision actually linked into this executable.
+
+        assessment.provenance.build_type =
+#ifdef NDEBUG
+            "Release";
+#else
+            "Debug";
+#endif
+
+        assessment.provenance.compiler =
+            std::string(__VERSION__);
+
+        write_engineering_report(
+            assessment,
+            output);
+
+        // R4.1: reuse one nonlinear forecast and its
+        // local-linearized uncertainty bounds.
+
+        const std::vector<double> thresholds{
+            4.0e6,
+            4.9e6,
+            4.99e6,
+            4.999e6,
+            5.0e6,
+            5.001e6,
+            5.01e6
+        };
+
+        const auto boundary_sweep =
+            assess_decision_boundary_sweep(
+                decision,
+                thresholds);
+
+        write_decision_boundary_sweep(
+            boundary_sweep,
+            output);
+
+
+
 
         std::cout
             << "Engineering reports written to "

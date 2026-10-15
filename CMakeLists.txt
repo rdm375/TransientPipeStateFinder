@@ -647,3 +647,93 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_BINARY_DIR}/engineering-demo-test"
     )
 endif()
+
+
+# R3.1 reusable engineering reporting
+
+add_library(
+    tpsf_engineering_report
+    STATIC
+    src/engineering_report.cpp
+)
+
+target_link_libraries(
+    tpsf_engineering_report
+    PUBLIC
+    tpsf_dense_solver
+)
+
+target_include_directories(
+    tpsf_engineering_report
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_engineering_report
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_engineering_report_test
+        tests/cpp/engineering_report.cpp
+    )
+
+    target_link_libraries(
+        tpsf_engineering_report_test
+        PRIVATE
+        tpsf_engineering_report
+    )
+
+    add_test(
+        NAME tpsf_engineering_report
+        COMMAND tpsf_engineering_report_test
+    )
+endif()
+
+
+# R4.1 decision-boundary sweep
+
+add_library(
+    tpsf_decision_boundary_sweep
+    STATIC
+    src/decision_boundary_sweep.cpp
+)
+
+target_link_libraries(
+    tpsf_decision_boundary_sweep
+    PUBLIC
+    tpsf_dense_solver
+)
+
+target_include_directories(
+    tpsf_decision_boundary_sweep
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_decision_boundary_sweep
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_decision_boundary_sweep_test
+        tests/cpp/decision_boundary_sweep.cpp
+    )
+
+    target_link_libraries(
+        tpsf_decision_boundary_sweep_test
+        PRIVATE
+        tpsf_decision_boundary_sweep
+    )
+
+    add_test(
+        NAME tpsf_decision_boundary_sweep
+        COMMAND tpsf_decision_boundary_sweep_test
+    )
+endif()
