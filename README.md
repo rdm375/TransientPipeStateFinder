@@ -166,17 +166,15 @@ observation channels are represented explicitly.
 
 Consider an analysis interval discretized as
 
-$$
+```math
 t_k = k\Delta t,
 \qquad k=0,\ldots,N.
-$$
-
+```
 Let
 
-$$
+```math
 \mathbf{x}_k \in \mathbb{R}^{2n+2}
-$$
-
+```
 denote the discrete physical pipeline state at time $t_k$.
 
 The state contains the pressure and mass-flow degrees of freedom
@@ -184,20 +182,19 @@ associated with the spatial discretization.
 
 The physical boundary-input vector is
 
-$$
+```math
 \mathbf{q}_k =
 \begin{bmatrix}
 p_{\mathrm{in},k}\\
 \dot m_{\mathrm{out},k}
 \end{bmatrix}.
-$$
-
+```
 These are the two independently prescribed physical boundary quantities
 in the forward model.
 
 The four reconstructed boundary channels are
 
-$$
+```math
 \mathbf{b}_k =
 \begin{bmatrix}
 p_{\mathrm{in},k}^{\mathrm{rec}}\\
@@ -205,30 +202,27 @@ p_{\mathrm{in},k}^{\mathrm{rec}}\\
 p_{\mathrm{out},k}^{\mathrm{rec}}\\
 \dot m_{\mathrm{out},k}^{\mathrm{rec}}
 \end{bmatrix}.
-$$
-
+```
 The superscript "rec" distinguishes reconstructed boundary channels
 from measured data.
 
 The complete physical optimization trajectory is
 
-$$
+```math
 \mathbf{z} =
 \left\{
 \mathbf{x}_k,
 \mathbf{q}_k,
 \mathbf{b}_k
 \right\}_{k=0}^{N}.
-$$
-
+```
 #### 1.2 Measurement Model
 
 Let
 
-$$
+```math
 y_{k,c}
-$$
-
+```
 denote the observed value of boundary channel $c$ at time $t_k$.
 
 The four channels are:
@@ -240,30 +234,27 @@ The four channels are:
 
 Let
 
-$$
+```math
 \sigma_{k,c}>0
-$$
-
+```
 be the measurement residual scale, and define the availability indicator
 
-$$
+```math
 a_{k,c} =
 \begin{cases}
 1, & \text{measurement available},\\
 0, & \text{measurement unavailable}.
 \end{cases}
-$$
-
+```
 For available measurements, the normalized residual is
 
-$$
+```math
 r_{k,c} =
 \frac{b_{k,c}-y_{k,c}}{\sigma_{k,c}}.
-$$
-
+```
 The measurement objective is
 
-$$
+```math
 \boxed{
 J(\mathbf{z}) =
 \frac12
@@ -274,8 +265,7 @@ a_{k,c}
 \frac{b_{k,c}-y_{k,c}}{\sigma_{k,c}}
 \right)^2
 }
-$$
-
+```
 Unavailable measurements are excluded from the objective.
 
 The implementation permits arbitrary positive residual scales.
@@ -289,7 +279,7 @@ nonlinear governing equations.
 
 For each time interval, write
 
-$$
+```math
 \boxed{
 \mathbf{F}_k
 \left(
@@ -302,20 +292,17 @@ $$
 =
 \mathbf{0}
 }
-$$
-
+```
 for
 
-$$
+```math
 k=0,\ldots,N-1.
-$$
-
+```
 Here,
 
-$$
+```math
 \boldsymbol{\xi}
-$$
-
+```
 denotes the fixed physical and numerical parameters.
 
 The statefinder uses the actual discrete forward-model residuals.
@@ -329,27 +316,24 @@ reconstruction and subsequent forward simulation.
 The reconstructed boundary channels are related to the physical
 pipeline state and boundary inputs through an observation operator
 
-$$
+```math
 \mathbf{H}(\mathbf{x}_k,\mathbf{q}_k).
-$$
-
+```
 The corresponding equality constraints are
 
-$$
+```math
 \boxed{
 \mathbf{b}_k -
 \mathbf{H}(\mathbf{x}_k,\mathbf{q}_k)
 =
 \mathbf{0}
 }
-$$
-
+```
 for
 
-$$
+```math
 k=0,\ldots,N.
-$$
-
+```
 The observation constraints ensure that reconstructed measurements
 correspond to physically consistent boundary quantities.
 
@@ -357,7 +341,7 @@ correspond to physically consistent boundary quantities.
 
 The full-space constrained nonlinear least-squares problem is
 
-$$
+```math
 \boxed{
 \begin{aligned}
 \underset{\mathbf{z}}{\operatorname{minimize}}
@@ -397,8 +381,7 @@ z_i=z_i^{\mathrm{ref}},
 \qquad i\in\mathcal{I}_{\mathrm{fixed}}.
 \end{aligned}
 }
-$$
-
+```
 The final constraint represents variables deliberately held fixed
 in a particular reconstruction experiment.
 
@@ -415,23 +398,21 @@ optimization coordinates to improve numerical conditioning.
 
 Let
 
-$$
+```math
 \mathcal{I}_{\mathrm{free}}
-$$
-
+```
 denote the indices of free physical variables.
 
 For each free variable,
 
-$$
+```math
 \boxed{
 z_i =
 z_i^{\mathrm{ref}} + s_i u_i,
 \qquad
 i\in\mathcal{I}_{\mathrm{free}},
 }
-$$
-
+```
 where
 
 - $z_i^{\mathrm{ref}}$ is the reference value used by the coordinate map;
@@ -440,10 +421,9 @@ where
 
 For fixed variables,
 
-$$
+```math
 z_i=z_i^{\mathrm{ref}}.
-$$
-
+```
 The reference values used for coordinate scaling are not necessarily
 the true physical state. In synthetic experiments, care is required
 to avoid inadvertently supplying unknown truth through fixed variables.
