@@ -333,3 +333,19 @@ if(BUILD_TESTING)
         NAME tpsf_unknown_initial_outlet_pressure
         COMMAND tpsf_unknown_initial_outlet_pressure_test)
 endif()
+
+# E2.4b.11b.4b — Independent initial-pressure reconstruction.
+add_executable(tpsf_independent_initial_pressure_test
+    tests/cpp/independent_initial_pressure_test.cpp)
+
+target_link_libraries(
+    tpsf_independent_initial_pressure_test
+    PRIVATE
+        tpsf_dense_solver
+        tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_independent_initial_pressure
+        COMMAND tpsf_independent_initial_pressure_test)
+endif()
