@@ -1116,3 +1116,1013 @@ The distinction between the two research questions is:
 The second question determines the principal engineering
 result of TransientPipeStateFinder.
 
+
+
+---
+
+### 4. Governing Equations and Conservation
+
+#### 4.1 Isothermal Compressible Flow
+
+The forward model describes transient compressible flow through a
+single pipe under an isothermal approximation.
+
+Let:
+
+- $x$ be distance along the pipe;
+- $t$ be time;
+- $\rho(x,t)$ be fluid density;
+- $v(x,t)$ be axial velocity;
+- $p(x,t)$ be pressure;
+- $\dot m(x,t)$ be mass flow rate;
+- $A$ be pipe cross-sectional area;
+- $D$ be pipe diameter.
+
+For a constant-area pipe,
+
+```math
+\dot m=\rho A v.
+```
+
+Conservation of mass gives
+
+```math
+\boxed{
+\frac{\partial \rho}{\partial t}
++
+\frac{1}{A}
+\frac{\partial \dot m}{\partial x}
+=0.
+}
+```
+
+A conventional one-dimensional momentum balance can be written
+
+```math
+\boxed{
+\frac{\partial \dot m}{\partial t}
++
+\frac{\partial}{\partial x}
+\left(
+\frac{\dot m^2}{\rho A}+Ap
+\right)
+=
+-\frac{f\dot m|\dot m|}{2D\rho A}
++
+\rho A g_x.
+}
+```
+
+Here $f$ denotes the Darcy friction factor and $g_x$ is
+the signed axial component of gravitational acceleration.
+
+This is a continuum reference formulation. The precise
+momentum terms, friction closure, and numerical approximations
+used by the linked forward solver must be established by
+inspection of that solver's implementation.
+
+An isothermal equation of state closes the system:
+
+```math
+\boxed{
+\rho=\rho(p,T,\boldsymbol{\xi}_{\mathrm{fluid}}),
+\qquad T=\text{constant}.
+}
+```
+
+For a simple constant-compressibility idealized model,
+
+```math
+\rho=\frac{p}{ZRT},
+```
+
+with consistent definitions of the specific gas constant $R$
+and compressibility factor $Z$.
+
+The repository's actual forward-model equation of state
+takes precedence over this illustrative expression.
+
+#### 4.2 Staggered Spatial Variables
+
+The linked forward solver uses a staggered state representation.
+
+For $n$ pipe cells, pressure is represented at $n+1$
+locations and interior mass flow at $n$ locations.
+
+The full physical state additionally contains the inlet
+mass-flow degree of freedom.
+
+Its dimension is
+
+```math
+\dim(\mathbf{x}_k)=2n+2.
+```
+
+The physical boundary inputs are inlet pressure and
+outlet mass flow.
+
+The statefinder preserves the forward solver's native
+state ordering and calls its discrete residual assembly.
+
+#### 4.3 Implicit Time Discretization
+
+The discrete dynamics are represented abstractly by
+
+```math
+\mathbf F_k(
+\mathbf x_{k+1},
+\mathbf x_k,
+\mathbf q_{k+1},
+\mathbf q_k;
+\boldsymbol{\xi}
+)=\mathbf0.
+```
+
+The forward solver uses an implicit time discretization
+with a time-weighting parameter $\theta$.
+
+For a generic quantity $a$, define
+
+```math
+a^\theta
+=
+(1-\theta)a^k+\theta a^{k+1}.
+```
+
+The parameter $\theta$ is reserved for time integration
+and is not used to denote the optimization parameter vector.
+
+The exact discrete residual, including boundary half-cell
+contributions, is defined by the external forward solver.
+
+#### 4.4 Pipeline Inventory and Mass Conservation
+
+Define the pipeline mass inventory
+
+```math
+\boxed{
+M(t)=\int_0^L A\rho(x,t)\,dx.
+}
+```
+
+Integrating continuity over the pipe gives
+
+```math
+\boxed{
+\frac{dM}{dt}
+=
+\dot m_{\mathrm{in}}
+-
+\dot m_{\mathrm{out}}.
+}
+```
+
+For the conservative discrete scheme, the corresponding
+global mass balance is
+
+```math
+\boxed{
+\frac{M^{k+1}-M^k}{\Delta t}
+=
+\dot m_{\mathrm{in}}^\theta
+-
+\dot m_{\mathrm{out}}^\theta.
+}
+```
+
+This identity is expected for a converged conservative
+forward step, up to numerical residual and roundoff effects.
+
+It provides an important verification target for
+reconstruction and nonlinear restart simulations.
+
+The physical mass imbalance is
+
+```math
+\Delta\dot m
+=
+\dot m_{\mathrm{in}}
+-
+\dot m_{\mathrm{out}}.
+```
+
+The discrete conservation defect is
+
+```math
+\boxed{
+\mathcal R_M^k
+=
+\frac{M^{k+1}-M^k}{\Delta t}
+-
+\left(
+\dot m_{\mathrm{in}}^\theta
+-
+\dot m_{\mathrm{out}}^\theta
+\right).
+}
+```
+
+These quantities must not be confused.
+
+A nonzero physical mass imbalance changes linepack.
+It does not imply a numerical conservation error.
+
+The conservation defect is a separate diagnostic from
+measurement fitting and state qualification.
+
+---
+
+### 5. The Implemented Dense SQP Method
+
+#### 5.1 Linearized Equality-Constrained Least Squares
+
+At an SQP iterate, let
+
+```math
+\mathbf A=\frac{\partial\mathbf c}{\partial\mathbf u},
+\qquad
+\mathbf B=\frac{\partial\mathbf r}{\partial\mathbf u}.
+```
+
+The Gauss-Newton SQP subproblem is
+
+```math
+\boxed{
+\begin{aligned}
+\min_{\mathbf d}\quad&
+\frac12\|\mathbf B\mathbf d+\mathbf r\|_2^2\\
+\text{subject to}\quad&
+\mathbf A\mathbf d=-\mathbf c.
+\end{aligned}
+}
+```
+
+The implemented dense linear solver handles this problem
+using singular-value decompositions.
+
+#### 5.2 Particular Feasible Step
+
+A rank-aware particular solution is obtained from
+the retained singular subspace of $\mathbf A$.
+
+Symbolically,
+
+```math
+\boxed{
+\mathbf d_p=-\mathbf A^\dagger\mathbf c,
+}
+```
+
+where the dagger denotes a truncated SVD pseudoinverse.
+
+The implementation checks whether
+
+```math
+\|\mathbf A\mathbf d_p+\mathbf c\|_2
+```
+
+satisfies its numerical compatibility tolerance.
+
+An incompatible linearization is reported rather than
+treated as an exactly feasible subproblem.
+
+#### 5.3 Null-Space Measurement Correction
+
+Let $\mathbf Z$ contain a basis for the numerical null
+space of $\mathbf A$:
+
+```math
+\mathbf A\mathbf Z\approx\mathbf0.
+```
+
+Every compatible linearized step can be expressed as
+
+```math
+\mathbf d=\mathbf d_p+\mathbf Z\mathbf v.
+```
+
+Substituting into the measurement objective gives
+
+```math
+\boxed{
+\min_{\mathbf v}
+\frac12
+\left\|
+\mathbf B\mathbf Z\mathbf v+
+\mathbf B\mathbf d_p+\mathbf r
+\right\|_2^2.
+}
+```
+
+The implemented solver uses another SVD to obtain
+a rank-aware minimum-norm correction.
+
+It reports:
+
+- Numerical constraint rank.
+- Reduced measurement rank.
+- Number of unresolved directions.
+- Retained singular-value diagnostics.
+- Linearized constraint compatibility.
+- Final linearized residuals.
+
+The null-space formulation is central to understanding
+measurement sufficiency.
+
+#### 5.4 Merit Function and Globalization
+
+The nonlinear solver uses an $L^1$ equality-constraint
+penalty merit function:
+
+```math
+\boxed{
+\Psi_\rho(\mathbf u)
+=
+\frac12\|\mathbf r(\mathbf u)\|_2^2
++
+\rho\|\mathbf c(\mathbf u)\|_1.
+}
+```
+
+The penalty $\rho>0$ may be increased when necessary
+to obtain a sufficiently descending search direction.
+
+For a proposed step $\mathbf d$, the line search seeks
+a step length $\alpha$ satisfying an Armijo condition:
+
+```math
+\boxed{
+\Psi_\rho(\mathbf u+\alpha\mathbf d)
+\le
+\Psi_\rho(\mathbf u)
++
+\gamma\alpha
+D\Psi_\rho(\mathbf u;\mathbf d),
+}
+```
+
+where $0<\gamma<1$ and the directional derivative
+includes the nonsmooth $L^1$ constraint contribution.
+
+The implementation rejects unsuccessful physical trial
+evaluations and backtracks.
+
+It also detects non-descent directions and line-search
+failure.
+
+#### 5.5 Termination
+
+The implemented convergence test combines:
+
+1. A scaled equality-constraint feasibility tolerance.
+2. A projected objective-gradient stationarity tolerance.
+
+The projected gradient removes the component of the
+objective gradient lying in the numerical range of
+the transpose constraint Jacobian.
+
+These tests establish numerical first-order consistency
+to the specified tolerances.
+
+They do not establish global optimality, uniqueness,
+or qualification for future prediction.
+
+---
+
+### 6. Discrete Tangent-Linear and Adjoint Equations
+
+#### 6.1 Tangent-Linear Dynamics
+
+Consider the implicit discrete step
+
+```math
+\mathbf F_k(
+\mathbf x_{k+1},\mathbf x_k,
+\mathbf q_{k+1},\mathbf q_k
+)=\mathbf0.
+```
+
+Define its partial derivatives:
+
+```math
+\mathbf F_{k,+}
+=
+\frac{\partial\mathbf F_k}{\partial\mathbf x_{k+1}},
+\qquad
+\mathbf F_{k,-}
+=
+\frac{\partial\mathbf F_k}{\partial\mathbf x_k}.
+```
+
+For perturbations in state and boundary inputs,
+
+```math
+\boxed{
+\begin{aligned}
+\mathbf F_{k,+}\delta\mathbf x_{k+1}
++
+\mathbf F_{k,-}\delta\mathbf x_k
++
+\mathbf F_{k,q+}\delta\mathbf q_{k+1}
++
+\mathbf F_{k,q-}\delta\mathbf q_k
+=
+\mathbf0.
+\end{aligned}
+}
+```
+
+When $\mathbf F_{k,+}$ is nonsingular, this defines
+a tangent-linear state update:
+
+```math
+\boxed{
+\delta\mathbf x_{k+1}
+=
+-\mathbf F_{k,+}^{-1}
+\left(
+\mathbf F_{k,-}\delta\mathbf x_k+
+\mathbf F_{k,q+}\delta\mathbf q_{k+1}+
+\mathbf F_{k,q-}\delta\mathbf q_k
+\right).
+}
+```
+
+The inverse notation represents a linear solve.
+An implementation need not form the inverse explicitly.
+
+#### 6.2 State-Transition Sensitivity
+
+With fixed future boundary inputs, define
+
+```math
+\mathbf T_k
+=
+-\mathbf F_{k,+}^{-1}\mathbf F_{k,-}.
+```
+
+The sensitivity of the future state to the initial
+state is
+
+```math
+\boxed{
+\mathbf\Phi_{k\rightarrow j}
+=
+\mathbf T_{j-1}\cdots\mathbf T_k.
+}
+```
+
+Thus,
+
+```math
+\delta\mathbf x_j
+\approx
+\mathbf\Phi_{k\rightarrow j}
+\delta\mathbf x_k.
+```
+
+This is the mathematical basis for studying
+initial-state memory and perturbation attenuation.
+
+A sensitivity attenuation threshold is not equivalent
+to the nonlinear state qualification criterion.
+
+#### 6.3 Discrete Adjoint
+
+Suppose a scalar forecast quantity is
+
+```math
+G=G(\mathbf x_0,\ldots,\mathbf x_N).
+```
+
+For fixed boundary inputs, introduce multipliers
+$\boldsymbol\lambda_k$ for the discrete dynamics:
+
+```math
+\mathcal L
+=
+G+
+\sum_{k=0}^{N-1}
+\boldsymbol\lambda_k^T\mathbf F_k.
+```
+
+The terminal adjoint equation is
+
+```math
+\boxed{
+\mathbf F_{N-1,+}^T\boldsymbol\lambda_{N-1}
+=
+-\frac{\partial G}{\partial\mathbf x_N}.
+}
+```
+
+For intermediate time levels, the backward recurrence is
+
+```math
+\boxed{
+\mathbf F_{k-1,+}^T\boldsymbol\lambda_{k-1}
+=
+-
+\frac{\partial G}{\partial\mathbf x_k}
+-
+\mathbf F_{k,-}^T\boldsymbol\lambda_k,
+}
+```
+
+for $k=N-1,\ldots,1$.
+
+The gradient with respect to the initial state is
+
+```math
+\boxed{
+\frac{dG}{d\mathbf x_0}
+=
+\frac{\partial G}{\partial\mathbf x_0}
++
+\mathbf F_{0,-}^T\boldsymbol\lambda_0.
+}
+```
+
+This is the discrete implicit adjoint formulation
+for a differentiable objective and nonsingular
+linearized timestep operators.
+
+It illustrates the backward structure of the
+adjoint equations.
+
+The repository's current full-space transpose
+derivative operations provide the corresponding
+building blocks. A separate production-scale
+backward adjoint implementation should not be
+inferred solely from these formulas.
+
+---
+
+### 7. Measurement Information and Identifiability
+
+#### 7.1 Physically Feasible Perturbations
+
+At a feasible reconstructed trajectory, let
+
+```math
+\mathbf A
+=
+\frac{\partial\mathbf c}{\partial\mathbf u}
+```
+
+be the scaled equality-constraint Jacobian.
+
+A first-order physically feasible perturbation
+must satisfy
+
+```math
+\mathbf A\delta\mathbf u=\mathbf0.
+```
+
+Let $\mathbf Z$ span its null space:
+
+```math
+\delta\mathbf u=\mathbf Z\mathbf v.
+```
+
+#### 7.2 Reduced Measurement Jacobian
+
+Let
+
+```math
+\mathbf B
+=
+\frac{\partial\mathbf r}{\partial\mathbf u}
+```
+
+be the normalized measurement-residual Jacobian.
+
+The measurement sensitivity restricted to
+feasible perturbations is
+
+```math
+\boxed{
+\mathbf B_{\mathrm{red}}=\mathbf B\mathbf Z.
+}
+```
+
+Its singular values describe the local
+distinguishability of feasible perturbations.
+
+A zero singular value corresponds to a locally
+unresolved feasible direction.
+
+A small singular value corresponds to a
+poorly constrained direction relative to the
+chosen variable and measurement scaling.
+
+#### 7.3 Local Information Matrix
+
+For independent Gaussian measurement errors with
+correctly specified residual scales, the
+Gauss-Newton local information matrix is
+
+```math
+\boxed{
+\mathcal I
+=
+\mathbf Z^T\mathbf B^T\mathbf B\mathbf Z.
+}
+```
+
+The information matrix is positive semidefinite.
+
+It is positive definite only when the reduced
+measurement Jacobian has full column rank.
+
+Without that rank condition, the data do not
+locally determine every feasible perturbation.
+
+These statements concern local linearized
+information and depend on the measurement model.
+
+They do not establish global identifiability.
+
+#### 7.4 Reconstruction Uncertainty
+
+If the reduced information matrix is positive
+definite and the assumed statistical model is
+appropriate, a local covariance approximation is
+
+```math
+\boxed{
+\mathbf C_v\approx\mathcal I^{-1}.
+}
+```
+
+The corresponding covariance in physical
+optimization coordinates is
+
+```math
+\mathbf C_u
+\approx
+\mathbf Z\mathbf C_v\mathbf Z^T.
+```
+
+This approximation is not valid as an unrestricted
+finite covariance when the information matrix
+is singular.
+
+A pseudoinverse describes uncertainty only on
+the retained identifiable subspace and does not
+resolve uncertainty in the null directions.
+
+Prior information, physical bounds, or additional
+measurements would be required to constrain
+those directions.
+
+---
+
+### 8. From Reconstruction Uncertainty to Prediction Uncertainty
+
+#### 8.1 Linearized Forecast Propagation
+
+Let $\mathbf C_k$ represent a defensible covariance
+estimate for the reconstructed physical state.
+
+For fixed future boundary inputs, the
+local-linearized forecast covariance is
+
+```math
+\boxed{
+\mathbf C_j
+\approx
+\mathbf\Phi_{k\rightarrow j}
+\mathbf C_k
+\mathbf\Phi_{k\rightarrow j}^T.
+}
+```
+
+If future boundary conditions are uncertain,
+their contribution must also be included.
+
+This equation does not account automatically
+for model discrepancy, non-Gaussian uncertainty,
+or nonlinear effects beyond the local approximation.
+
+#### 8.2 Prediction-Weighted Observability
+
+Not every poorly observed state direction is
+important to an engineering prediction.
+
+Let $\mathbf G$ be the Jacobian of a chosen
+future prediction with respect to the
+full-space optimization coordinates.
+
+For a feasible perturbation,
+
+```math
+\delta\mathbf g
+\approx
+\mathbf G\mathbf Z\mathbf v.
+```
+
+The measurements respond according to
+
+```math
+\delta\mathbf r
+\approx
+\mathbf B\mathbf Z\mathbf v.
+```
+
+A prediction-weighted sensitivity ratio is
+
+```math
+\boxed{
+\eta(\mathbf v)
+=
+\frac{
+\|\mathbf G\mathbf Z\mathbf v\|_2
+}{
+\|\mathbf B\mathbf Z\mathbf v\|_2
+}.
+}
+```
+
+This ratio is defined only when its denominator
+is nonzero.
+
+Directions invisible to the measurements require
+separate treatment.
+
+In particular, if
+
+```math
+\mathbf B\mathbf Z\mathbf v=\mathbf0
+```
+
+but
+
+```math
+\mathbf G\mathbf Z\mathbf v\ne\mathbf0,
+```
+
+then the available measurements cannot distinguish
+a perturbation that affects the future prediction.
+
+Such a direction is especially important for
+state qualification.
+
+Conversely, a poorly observed direction that
+has negligible influence on relevant future
+predictions may be tolerable.
+
+This distinction motivates prediction-oriented
+rather than exclusively state-oriented
+measurement sufficiency.
+
+#### 8.3 A Local Prediction-Error Bound
+
+Suppose the feasible perturbation coordinates
+satisfy an ellipsoidal uncertainty constraint
+
+```math
+\mathbf v^T\mathbf W\mathbf v\le1,
+```
+
+where $\mathbf W$ is positive definite.
+
+For a scalar linearized prediction with
+sensitivity row $\mathbf g^T$, the worst-case
+absolute prediction error over this ellipsoid is
+
+```math
+\boxed{
+B_g
+=
+\sqrt{
+\mathbf g^T
+\mathbf W^{-1}
+\mathbf g
+}.
+}
+```
+
+This is exact for the stated linearized prediction
+and ellipsoidal uncertainty set.
+
+It is not automatically a rigorous bound for
+the nonlinear forward model.
+
+Nonlinear remainder estimates or direct nonlinear
+validation are needed before using it as a
+guaranteed engineering certificate.
+
+---
+
+### 9. Robust State Qualification
+
+#### 9.1 Dependence on Future Controls
+
+The current synthetic qualification metric
+depends on the specified future boundary conditions.
+
+More explicitly, write
+
+```math
+Q(t_k,H;\mathbf q^+),
+```
+
+where $\mathbf q^+$ is the future
+boundary-control history.
+
+A state may qualify under one operating
+scenario but fail under another.
+
+#### 9.2 Scenario-Robust Qualification
+
+Let $\mathcal U$ denote an admissible
+set of future boundary-control scenarios.
+
+A proposed robust qualification metric is
+
+```math
+\boxed{
+Q_{\mathrm{robust}}(t_k,H)
+=
+\sup_{\mathbf q^+\in\mathcal U}
+Q(t_k,H;\mathbf q^+).
+}
+```
+
+This extends the current single-scenario
+synthetic experiment.
+
+The supremum must not be described as evaluated
+unless the scenario set has actually been
+searched or rigorously bounded.
+
+#### 9.3 Qualification Without Known Truth
+
+Operational qualification generally cannot
+compare the reconstructed state with an
+unknown true state.
+
+Instead, suppose a defensible uncertainty
+set $\mathcal X_k$ contains all initial
+states considered possible given the
+measurements and modeling assumptions.
+
+Let
+
+```math
+\hat{\mathbf x}_k
+```
+
+be the reconstructed state.
+
+For each candidate state
+$\mathbf x\in\mathcal X_k$ and future
+control history $\mathbf q^+\in\mathcal U$,
+compare the nonlinear forecasts initialized
+from $\hat{\mathbf x}_k$ and $\mathbf x$.
+
+A prospective robust criterion is
+
+```math
+\boxed{
+\sup_{\mathbf x\in\mathcal X_k}
+\sup_{\mathbf q^+\in\mathcal U}
+\max\left(
+\frac{E_p(\hat{\mathbf x}_k,\mathbf x;\mathbf q^+,H)}
+{\varepsilon_p},
+\frac{E_{\dot m}(\hat{\mathbf x}_k,\mathbf x;\mathbf q^+,H)}
+{\varepsilon_{\dot m}}
+\right)
+\le1.
+}
+```
+
+Here the errors compare the two nonlinear
+forecast trajectories over the complete horizon.
+
+This criterion would provide a deterministic
+conditional guarantee only if the true state
+belongs to $\mathcal X_k$ and the forward-model
+assumptions hold.
+
+Constructing credible uncertainty sets and
+evaluating or bounding this supremum are
+future research tasks.
+
+The current R5.1 implementation does not
+provide this operational certificate.
+
+#### 9.4 Statistical Qualification
+
+A different research direction is to define
+a probability-based criterion, such as
+
+```math
+\Pr\left(
+Q(t_k,H)\le1
+\mid\mathcal Y_k
+\right)
+\ge1-\alpha.
+```
+
+Such a statement requires a specified
+probabilistic model for the unknown state,
+measurement errors, and any relevant
+model or control uncertainty.
+
+It is not interchangeable with a
+deterministic worst-case guarantee.
+
+No calibrated statistical qualification
+claim is established by the current
+synthetic experiments.
+
+---
+
+### 10. Verification and Engineering Acceptance
+
+#### 10.1 Separate Numerical and Engineering Questions
+
+The implementation should distinguish:
+
+**Numerical correctness**
+
+- Discrete residual consistency.
+- Tangent-linear derivative verification.
+- Adjoint transpose consistency.
+- Constraint feasibility.
+- SQP stationarity.
+- Global mass conservation.
+- Nonlinear restart reproducibility.
+
+**Engineering reliability**
+
+- Forecast pressure error.
+- Forecast mass-flow error.
+- Sensitivity to initial-state deficiencies.
+- Sensitivity to measurement noise.
+- Sensitivity to future operating scenarios.
+- Qualification time and persistence.
+- Uncertainty coverage when truth is unavailable.
+
+Passing numerical tests is necessary for
+trustworthy engineering results, but does
+not by itself establish engineering qualification.
+
+#### 10.2 State Qualification Time
+
+For a fixed test configuration, the sampled
+qualification time remains
+
+```math
+\boxed{
+t_Q
+=
+\min\left\{
+t_k:
+Q(t_j,H)\le1
+\text{ for every subsequently tested }t_j,
+\text{ with successful reconstruction and restart}
+\right\}.
+}
+```
+
+If no such candidate exists, the
+result is NOT QUALIFIED.
+
+The result must be reported together with:
+
+- The analysis-time sampling grid.
+- The restart horizon.
+- Pressure and mass-flow tolerances.
+- Measurement availability and noise assumptions.
+- Initial-state deficiency.
+- Future boundary-control scenario.
+- Forward-model and discretization provenance.
+- Numerical convergence and conservation diagnostics.
+
+#### 10.3 Central Research Hypothesis
+
+The central research hypothesis is:
+
+> A pipeline state need not be uniquely determined
+> in every coordinate to support reliable engineering
+> predictions. Qualification depends on whether the
+> uncertainty remaining after reconstruction can
+> materially affect the subsequent simulated behavior.
+
+The research program tests this hypothesis by
+combining measurement-information analysis,
+discrete sensitivity propagation, and independent
+nonlinear forecast restarts.
+
+The current R5.1 experiment validates the
+qualification workflow but does not yet establish
+a nontrivial physical qualification time.
+
+R5.2 will investigate initially deficient states,
+expanded initial-state unknowns, controlled
+measurement noise, and persistent qualification
+under nonlinear forecast validation.
+
