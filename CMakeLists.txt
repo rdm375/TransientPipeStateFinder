@@ -26,6 +26,7 @@ add_library(tpsf_forward STATIC
     src/full_space_trajectory.cpp
     src/full_space_trajectory_derivatives.cpp
     src/full_space_measurement_objective.cpp
+    src/full_space_problem.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -223,4 +224,19 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_full_space_measurement_objective
         COMMAND tpsf_full_space_measurement_objective_test)
+endif()
+
+
+# E2.4b.10 — Unified scaled full-space optimization problem
+add_executable(tpsf_full_space_problem_test
+    tests/cpp/full_space_problem_test.cpp)
+
+target_link_libraries(
+    tpsf_full_space_problem_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_problem
+        COMMAND tpsf_full_space_problem_test)
 endif()
