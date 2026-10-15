@@ -253,7 +253,8 @@ add_library(tpsf_dense_solver STATIC
     src/dense_constrained_least_squares.cpp
     src/dense_full_space_subproblem.cpp
     src/dense_full_space_sqp.cpp
-    src/statefinding_quality.cpp)
+    src/statefinding_quality.cpp
+    src/engineering_sensitivity.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -411,4 +412,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_statefinding_quality
         COMMAND tpsf_statefinding_quality_test)
+endif()
+
+
+# E5.2 — Engineering quantity sensitivity.
+add_executable(tpsf_engineering_sensitivity_test
+    tests/cpp/engineering_sensitivity_test.cpp)
+
+target_link_libraries(tpsf_engineering_sensitivity_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_engineering_sensitivity
+        COMMAND tpsf_engineering_sensitivity_test)
 endif()
