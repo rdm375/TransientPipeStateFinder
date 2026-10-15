@@ -28,6 +28,7 @@ add_library(tpsf_forward STATIC
     src/full_space_trajectory_derivatives.cpp
     src/full_space_measurement_objective.cpp
     src/full_space_problem.cpp
+    src/matrix_free_kkt.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)

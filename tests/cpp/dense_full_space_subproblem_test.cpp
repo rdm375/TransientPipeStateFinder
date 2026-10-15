@@ -1,4 +1,5 @@
 #include "tpsf/dense_full_space_subproblem.hpp"
+#include "tpsf/matrix_free_kkt.hpp"
 #include "tpsf/dense_constrained_least_squares.hpp"
 
 #include <algorithm>
@@ -133,6 +134,132 @@ FullSpaceProblemConfiguration make_configuration(
             i%3 == 1 ? 0.1 : 2.0;
 
     return config;
+}
+
+
+void verify_matrix_free_kkt(
+    const FullSpaceProblem& problem)
+{
+    const Eigen::Index n =
+        static_cast<Eigen::Index>(
+            problem.free_variable_count());
+
+    const Eigen::Index m =
+        static_cast<Eigen::Index>(
+            problem.constraint_count());
+
+    Eigen::VectorXd u = Eigen::VectorXd::Zero(n);
+
+    for (Eigen::Index i = 0; i < n; ++i)
+        u[i] = 0.01*std::sin(0.3*(i+1));
+
+    const std::vector<double> coordinates(
+        u.data(), u.data()+u.size());
+
+    const MatrixFreeKKT operator_kkt(
+        problem, coordinates);
+
+    const auto dense =
+        assemble_dense_full_space_subproblem(problem, u);
+
+    Eigen::MatrixXd K =
+        Eigen::MatrixXd::Zero(n+m, n+m);
+
+    K.topLeftCorner(n, n) =
+        dense.measurement_jacobian.transpose() *
+        dense.measurement_jacobian;
+
+    K.topRightCorner(n, m) =
+        dense.constraint_jacobian.transpose();
+
+    K.bottomLeftCorner(m, n) =
+        dense.constraint_jacobian;
+
+    Eigen::VectorXd x(n+m);
+    Eigen::VectorXd y(n+m);
+
+    for (Eigen::Index i = 0; i < n+m; ++i) {
+        x[i] = std::sin(0.17*(i+1));
+        y[i] = std::cos(0.23*(i+1));
+    }
+
+    auto apply = [&](const Eigen::VectorXd& input) {
+        const std::vector<double> values(
+            input.data(), input.data()+input.size());
+
+        const auto output = operator_kkt.apply(values);
+
+        require(
+            output.size() ==
+                static_cast<std::size_t>(n+m),
+            "KKT output dimension mismatch");
+
+        Eigen::VectorXd result(n+m);
+
+        for (Eigen::Index i = 0; i < n+m; ++i)
+            result[i] = output[static_cast<std::size_t>(i)];
+
+        return result;
+    };
+
+    const Eigen::VectorXd Kx = apply(x);
+    const Eigen::VectorXd Ky = apply(y);
+
+    require(
+        relative_error(Kx, K*x) < 1e-10,
+        "Matrix-free KKT dense parity");
+
+    require(
+        relative_error(Ky, K*y) < 1e-10,
+        "Matrix-free KKT second-vector parity");
+
+    const double lhs = x.dot(Ky);
+    const double rhs = Kx.dot(y);
+
+    const double symmetry_scale =
+        std::max({1.0, std::abs(lhs), std::abs(rhs)});
+
+    require(
+        std::abs(lhs-rhs) < 1e-10*symmetry_scale,
+        "Matrix-free KKT symmetry");
+
+    Eigen::VectorXd expected_rhs(n+m);
+
+    expected_rhs.head(n) =
+        -dense.measurement_jacobian.transpose() *
+        dense.measurement_residual;
+
+    expected_rhs.tail(m) =
+        -dense.constraint_residual;
+
+    const auto rhs_std = operator_kkt.right_hand_side();
+
+    require(
+        rhs_std.size() ==
+            static_cast<std::size_t>(n+m),
+        "KKT right-hand-side dimension mismatch");
+
+    Eigen::VectorXd actual_rhs(n+m);
+
+    for (Eigen::Index i = 0; i < n+m; ++i)
+        actual_rhs[i] =
+            rhs_std[static_cast<std::size_t>(i)];
+
+    require(
+        relative_error(actual_rhs, expected_rhs) < 1e-10,
+        "Matrix-free KKT RHS dense parity");
+
+    // Reject incorrect input dimensions.
+    bool rejected = false;
+
+    try {
+        operator_kkt.apply({});
+    }
+    catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+
+    require(rejected, "KKT dimension validation");
 }
 
 void verify_assembly(
@@ -312,11 +439,13 @@ int main()
             make_configuration());
 
         verify_assembly(ordinary);
+        verify_matrix_free_kkt(ordinary);
 
         const FullSpaceProblem no_measurements(
             make_configuration(false, true));
 
         verify_assembly(no_measurements);
+        verify_matrix_free_kkt(no_measurements);
 
         const auto empty =
             assemble_dense_full_space_subproblem(
@@ -332,6 +461,7 @@ int main()
             make_configuration(true, false));
 
         verify_assembly(all_fixed);
+        verify_matrix_free_kkt(all_fixed);
 
         const auto fixed =
             assemble_dense_full_space_subproblem(
