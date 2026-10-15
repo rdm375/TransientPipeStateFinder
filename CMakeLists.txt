@@ -19,6 +19,7 @@ add_library(tpsf_forward STATIC
     src/scheduled_forward.cpp
     src/objective.cpp
     src/full_space_observations.cpp
+    src/physical_boundary_channels.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -105,4 +106,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_full_space_observations
         COMMAND tpsf_full_space_observations_test)
+endif()
+
+
+# E2.4b.2 — Physical boundary-channel extraction
+add_executable(tpsf_physical_boundary_channels_test
+    tests/cpp/physical_boundary_channels_test.cpp)
+
+target_link_libraries(tpsf_physical_boundary_channels_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_physical_boundary_channels
+        COMMAND tpsf_physical_boundary_channels_test)
 endif()
