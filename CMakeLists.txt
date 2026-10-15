@@ -737,3 +737,42 @@ if(BUILD_TESTING)
         COMMAND tpsf_decision_boundary_sweep_test
     )
 endif()
+
+
+# R5.1 causal state qualification
+
+add_library(
+    tpsf_state_qualification
+    STATIC
+    src/state_qualification.cpp
+)
+
+target_include_directories(
+    tpsf_state_qualification
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_state_qualification
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_state_qualification_test
+        tests/cpp/state_qualification.cpp
+    )
+
+    target_link_libraries(
+        tpsf_state_qualification_test
+        PRIVATE
+        tpsf_state_qualification
+    )
+
+    add_test(
+        NAME tpsf_state_qualification
+        COMMAND tpsf_state_qualification_test
+    )
+endif()

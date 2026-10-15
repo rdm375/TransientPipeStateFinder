@@ -2,6 +2,7 @@
 #include "tpsf/dense_full_space_sqp.hpp"
 #include "tpsf/decision_timescales.hpp"
 #include "tpsf/engineering_report.hpp"
+#include "tpsf/state_qualification.hpp"
 #include "tpsf/decision_boundary_sweep.hpp"
 #include "tpsf/forecast_attenuation.hpp"
 #include "tpsf/sensitivity_decay.hpp"
@@ -624,6 +625,241 @@ void write_reports(
            "and grid convergence remain future work.\n";
 }
 
+
+// R5.1: causal state reconstruction and independent
+// nonlinear restart qualification.
+//
+// At analysis step k, only measurements at levels 0..k
+// are supplied to the statefinder.
+//
+// The synthetic truth is used solely for validation,
+// never for the initial guess or the statefinder's
+// measurement history beyond the candidate time.
+
+StateQualificationResult run_qualification_experiment()
+{
+    auto cfg = configuration();
+
+    constexpr int analysis_steps = 8;
+    constexpr int restart_steps = 4;
+    constexpr int total_steps =
+        analysis_steps + restart_steps;
+
+    cfg.steps = total_steps;
+
+    const InitialState truth_initial{
+        {5.0e6, 5.0e6, 5.0e6},
+        {10.0, 10.0},
+        10.0
+    };
+
+    InitialState guessed_initial = truth_initial;
+
+    guessed_initial.pressure[1] += 1.5e4;
+    guessed_initial.pressure[2] += 2.0e4;
+
+    BoundarySchedule schedule;
+
+    for (int k = 0; k <= total_steps; ++k) {
+        schedule.inlet_pressure.push_back(5.0e6);
+        schedule.outlet_flow.push_back(
+            10.0 + 0.02 * k);
+    }
+
+    const auto truth =
+        recorded_trajectory(
+            cfg,
+            run_forward_scheduled_recorded(
+                cfg,
+                truth_initial,
+                schedule));
+
+    const auto guess =
+        recorded_trajectory(
+            cfg,
+            run_forward_scheduled_recorded(
+                cfg,
+                guessed_initial,
+                schedule));
+
+    StateQualificationOptions qualification_options;
+
+    qualification_options.pressure_tolerance_pa =
+        1.0e4;
+
+    qualification_options.flow_tolerance_kg_s =
+        0.1;
+
+    qualification_options.restart_horizon_s =
+        restart_steps * cfg.parameters.dt;
+
+    std::vector<StateQualificationSample> samples;
+
+    for (int k = 1; k <= analysis_steps; ++k) {
+
+        StateQualificationSample sample;
+
+        sample.analysis_time_s =
+            k * cfg.parameters.dt;
+
+        try {
+            // Only the causal measurement prefix is
+            // visible to this reconstruction.
+            FullSpaceTrajectory truth_prefix = truth;
+            FullSpaceTrajectory guess_prefix = guess;
+
+            const std::size_t levels =
+                static_cast<std::size_t>(k + 1);
+
+            truth_prefix.states.resize(levels);
+            truth_prefix.inputs.resize(levels);
+            truth_prefix.reconstructed.resize(levels);
+
+            guess_prefix.states.resize(levels);
+            guess_prefix.inputs.resize(levels);
+            guess_prefix.reconstructed.resize(levels);
+
+            const auto problem =
+                make_problem(
+                    guess_prefix,
+                    truth_prefix,
+                    cfg.parameters);
+
+            const Eigen::VectorXd initial_coordinates =
+                Eigen::VectorXd::Zero(
+                    static_cast<Eigen::Index>(
+                        problem.free_variable_count()));
+
+            DenseSQPOptions options;
+            options.maximum_iterations = 40;
+            options.feasibility_tolerance = 1.0e-8;
+            options.stationarity_tolerance = 1.0e-8;
+
+            const auto solution =
+                solve_dense_full_space_sqp(
+                    problem,
+                    initial_coordinates,
+                    options);
+
+            sample.reconstruction_converged =
+                solution.converged();
+
+            if (!solution.converged()) {
+                samples.push_back(sample);
+                continue;
+            }
+
+            const std::vector<double> coordinates(
+                solution.coordinates.data(),
+                solution.coordinates.data() +
+                    solution.coordinates.size());
+
+            const auto reconstructed =
+                problem.trajectory(coordinates);
+
+            const auto restart_initial =
+                initial_state_from_full_space(
+                    reconstructed,
+                    static_cast<std::size_t>(k));
+
+            auto restart_cfg = cfg;
+            restart_cfg.steps = restart_steps;
+
+            BoundarySchedule restart_schedule;
+
+            for (int j = 0; j <= restart_steps; ++j) {
+                restart_schedule.inlet_pressure.push_back(
+                    schedule.inlet_pressure[k + j]);
+
+                restart_schedule.outlet_flow.push_back(
+                    schedule.outlet_flow[k + j]);
+            }
+
+            // Independent nonlinear integration from
+            // the statefinder's reconstructed state.
+            const auto restarted =
+                recorded_trajectory(
+                    restart_cfg,
+                    run_forward_scheduled_recorded(
+                        restart_cfg,
+                        restart_initial,
+                        restart_schedule));
+
+            double maximum_pressure_error = 0.0;
+            double maximum_flow_error = 0.0;
+
+            for (int j = 0; j <= restart_steps; ++j) {
+
+                const auto& estimated =
+                    restarted.states[
+                        static_cast<std::size_t>(j)];
+
+                const auto& reference =
+                    truth.states[
+                        static_cast<std::size_t>(k + j)];
+
+                require(
+                    estimated.size() == reference.size(),
+                    "Restart state size mismatch");
+
+                // State layout for n=2:
+                // [inlet pressure, inlet flow,
+                //  cell flow, pressure, cell flow,
+                //  outlet pressure].
+                //
+                // More generally, pressure indices are
+                // 0,3,5,...,2*n+1.
+                // Remaining entries are mass flows.
+                for (std::size_t i = 0;
+                     i < estimated.size(); ++i) {
+
+                    const bool pressure =
+                        i == 0 ||
+                        (i >= 3 && i % 2 == 1);
+
+                    const double error =
+                        std::abs(
+                            estimated[i] - reference[i]);
+
+                    if (pressure) {
+                        maximum_pressure_error =
+                            std::max(
+                                maximum_pressure_error,
+                                error);
+                    } else {
+                        maximum_flow_error =
+                            std::max(
+                                maximum_flow_error,
+                                error);
+                    }
+                }
+            }
+
+            sample.pressure_error_pa =
+                maximum_pressure_error;
+
+            sample.flow_error_kg_s =
+                maximum_flow_error;
+
+            sample.restart_succeeded = true;
+
+        } catch (const std::exception& error) {
+
+            std::cerr
+                << "Qualification candidate at "
+                << sample.analysis_time_s
+                << " s failed: "
+                << error.what() << '\n';
+        }
+
+        samples.push_back(sample);
+    }
+
+    return assess_state_qualification(
+        std::move(samples),
+        qualification_options);
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -634,6 +870,28 @@ int main(int argc, char** argv)
             argc > 1
                 ? argv[1]
                 : "reports/engineering-demo";
+
+        // R5.1 primary engineering result.
+        const auto qualification =
+            run_qualification_experiment();
+
+        write_state_qualification(
+            qualification,
+            output);
+
+        std::cout
+            << "State qualification: "
+            << (qualification.qualified
+                ? "QUALIFIED"
+                : "NOT QUALIFIED")
+            << '\n';
+
+        if (qualification.qualification_time_s) {
+            std::cout
+                << "Qualification time: "
+                << *qualification.qualification_time_s
+                << " s\n";
+        }
 
         const auto cfg =
             configuration();
