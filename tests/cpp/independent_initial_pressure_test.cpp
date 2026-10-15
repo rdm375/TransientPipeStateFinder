@@ -245,9 +245,19 @@ FullSpaceProblem make_problem(
     return FullSpaceProblem(std::move(cfg));
 }
 
-void test_independent_initial_pressure()
+void test_independent_initial_pressure(std::size_t observation_level)
 {
     const auto cfg = make_configuration();
+
+    require(
+        observation_level <= static_cast<std::size_t>(cfg.steps),
+        "Observation level exceeds simulation horizon");
+
+    std::cout
+        << "Observation level: " << observation_level
+        << ", time [s]: "
+        << observation_level * cfg.parameters.dt
+        << '\n';
 
     const InitialState initial{
         {5.0e6, 5.0e6, 5.0e6},
@@ -335,7 +345,7 @@ void test_independent_initial_pressure()
             truth,
             cfg.parameters,
             true,
-            2);
+            observation_level);
 
     const auto unobserved_problem =
         make_problem(
@@ -343,7 +353,7 @@ void test_independent_initial_pressure()
             truth,
             cfg.parameters,
             false,
-            2);
+            observation_level);
 
     Eigen::VectorXd u0 =
         Eigen::VectorXd::Zero(
@@ -507,10 +517,24 @@ void test_independent_initial_pressure()
 
 } // namespace
 
-int main()
+
+int main(int argc, char** argv)
 {
     try {
-        test_independent_initial_pressure();
+        require(argc == 2,
+                "Usage: independent_initial_pressure_test "
+                "<observation-level>");
+
+        const std::string argument = argv[1];
+
+        require(argument == "0" || argument == "2",
+                "Observation level must be 0 or 2");
+
+        const std::size_t observation_level =
+            static_cast<std::size_t>(std::stoul(argument));
+
+        test_independent_initial_pressure(observation_level);
+
         return 0;
     }
     catch (const std::exception& error) {

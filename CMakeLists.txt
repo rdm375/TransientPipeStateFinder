@@ -346,6 +346,10 @@ target_link_libraries(
 
 if(BUILD_TESTING)
     add_test(
-        NAME tpsf_independent_initial_pressure
-        COMMAND tpsf_independent_initial_pressure_test)
+        NAME tpsf_independent_initial_pressure_direct
+        COMMAND tpsf_independent_initial_pressure_test 0)
+
+    add_test(
+        NAME tpsf_independent_initial_pressure_delayed
+        COMMAND tpsf_independent_initial_pressure_test 2)
 endif()
