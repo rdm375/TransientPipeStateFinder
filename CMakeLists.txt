@@ -25,6 +25,7 @@ add_library(tpsf_forward STATIC
     src/full_space_adjoint.cpp
     src/full_space_trajectory.cpp
     src/full_space_trajectory_derivatives.cpp
+    src/full_space_measurement_objective.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -207,4 +208,19 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_full_space_trajectory_derivatives
         COMMAND tpsf_full_space_trajectory_derivatives_test)
+endif()
+
+
+# E2.4b.9 — Masked weighted boundary measurement objective
+add_executable(tpsf_full_space_measurement_objective_test
+    tests/cpp/full_space_measurement_objective_test.cpp)
+
+target_link_libraries(
+    tpsf_full_space_measurement_objective_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_measurement_objective
+        COMMAND tpsf_full_space_measurement_objective_test)
 endif()
