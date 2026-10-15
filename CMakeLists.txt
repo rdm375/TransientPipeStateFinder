@@ -24,3 +24,16 @@ target_link_libraries(tpsf_smoke PRIVATE tpsf_forward)
 if(BUILD_TESTING)
   add_test(NAME tpsf_forward_smoke COMMAND tpsf_smoke)
 endif()
+
+# E2.1 — Scaled initial-state representation
+add_executable(tpsf_scaled_state_test
+    tests/cpp/scaled_state_test.cpp)
+
+target_link_libraries(tpsf_scaled_state_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_scaled_state
+        COMMAND tpsf_scaled_state_test)
+endif()
