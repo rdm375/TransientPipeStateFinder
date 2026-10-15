@@ -25,4 +25,22 @@
 
 ## Current status
 
-Foundation files and schema unit tests are included. C++ integration has not been compiled in this packaging environment because the forward solver checkout is unavailable. No estimator or report generator is claimed to exist.
+The E1 foundation has progressed through the E5.7b research
+checkpoint. The repository now contains constrained reconstruction,
+measurement-information analysis, exact tangent-linear forecast
+sensitivities, local uncertainty propagation, and engineering
+decision classification.
+
+At commit `ae83939`, the E5.7b experiment and the complete
+46-test regression suite passed.
+
+The current evidence is based on synthetic single-pipe experiments.
+Large-scale solver performance, nonlinear uncertainty guarantees,
+measurement-design optimization, and the engineering report
+generator remain open work.
+
+The forward solver is linked directly from the external
+`isothermal-pipe-sim` source tree. Its exact revision and
+licensing must be recorded for reproducible distribution.
+
+See `docs/RESEARCH_ROADMAP.md`.
