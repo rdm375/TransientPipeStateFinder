@@ -71,6 +71,13 @@ public:
         const std::vector<double>& u,
         const std::vector<double>& direction) const;
 
+    // Exact transpose of the normalized measurement JVP.
+    // Dual ordering: available measurements, time then channel.
+    // Result: scaled free-variable coordinates.
+    std::vector<double> measurement_vjp(
+        const std::vector<double>& u,
+        const std::vector<double>& dual) const;
+
     std::vector<double> constraint_jvp(
         const std::vector<double>& u,
         const std::vector<double>& direction) const;

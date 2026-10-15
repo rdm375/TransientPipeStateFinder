@@ -474,6 +474,61 @@ std::vector<double> FullSpaceProblem::measurement_jvp(
     return result;
 }
 
+std::vector<double> FullSpaceProblem::measurement_vjp(
+    const std::vector<double>& u,
+    const std::vector<double>& dual) const
+{
+    const auto t = trajectory(u);
+
+    const auto width = state_width(t.n);
+    const auto block = block_width(t.n);
+
+    std::vector<double> physical_gradient(
+        reference_flat_.size(), 0.0);
+
+    std::size_t position = 0;
+
+    for (std::size_t k = 0;
+         k < configuration_.measurements.size(); ++k) {
+
+        const auto& measurement =
+            configuration_.measurements[k];
+
+        const std::size_t offset =
+            k*block + width + 2;
+
+        for (std::size_t c = 0; c < 4; ++c) {
+            if (!measurement.available[c])
+                continue;
+
+            if (position >= dual.size())
+                throw std::invalid_argument(
+                    "Incorrect measurement dual dimension");
+
+            const double weight = dual[position++];
+
+            if (!std::isfinite(weight))
+                throw std::invalid_argument(
+                    "Nonfinite measurement dual");
+
+            const double contribution =
+                weight / measurement.sigma[c];
+
+            if (!std::isfinite(contribution))
+                throw std::invalid_argument(
+                    "Nonfinite measurement adjoint contribution");
+
+            physical_gradient[offset+c] += contribution;
+        }
+    }
+
+    if (position != dual.size())
+        throw std::invalid_argument(
+            "Incorrect measurement dual dimension");
+
+    return project_gradient(physical_gradient);
+}
+
 std::vector<double> FullSpaceProblem::constraint_jvp(
     const std::vector<double>& u,
     const std::vector<double>& direction) const
