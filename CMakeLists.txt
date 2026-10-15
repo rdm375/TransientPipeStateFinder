@@ -363,6 +363,10 @@ if(BUILD_TESTING)
         COMMAND tpsf_independent_initial_pressure_test 0)
 
     add_test(
+        NAME tpsf_independent_initial_pressure_intermediate
+        COMMAND tpsf_independent_initial_pressure_test 1)
+
+    add_test(
         NAME tpsf_independent_initial_pressure_delayed
         COMMAND tpsf_independent_initial_pressure_test 2)
 endif()
@@ -579,4 +583,20 @@ if(BUILD_TESTING)
         NAME tpsf_decision_timescales
         COMMAND tpsf_decision_timescales_test
     )
+endif()
+
+# E5.7b — Measurement sufficiency for engineering decisions.
+add_executable(tpsf_measurement_sufficiency_experiment
+    tests/cpp/measurement_sufficiency_experiment.cpp)
+
+target_link_libraries(
+    tpsf_measurement_sufficiency_experiment
+    PRIVATE
+        tpsf_dense_solver
+        tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_sufficiency
+        COMMAND tpsf_measurement_sufficiency_experiment)
 endif()

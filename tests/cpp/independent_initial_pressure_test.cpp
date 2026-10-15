@@ -102,6 +102,7 @@ struct RankAudit {
     Eigen::Index nullity = 0;
     Eigen::Index measurement_rank = 0;
     Eigen::Index unresolved = 0;
+    double information_singular_value = 0.0;
 };
 
 RankAudit audit_rank(
@@ -148,6 +149,9 @@ RankAudit audit_rank(
     const Eigen::JacobiSVD<Eigen::MatrixXd> reduced_svd(
         reduced, Eigen::ComputeThinU |
                  Eigen::ComputeThinV);
+
+    audit.information_singular_value =
+        reduced_svd.singularValues()[0];
 
     audit.measurement_rank =
         numerical_rank(reduced_svd.singularValues());
@@ -512,6 +516,12 @@ void test_independent_initial_pressure(std::size_t observation_level)
     require(final_rank.measurement_rank == 1,
             "Final measurement rank changed");
 
+    std::cout
+        << "E5.7 initial information singular value: "
+        << initial_rank.information_singular_value << '\n'
+        << "E5.7 final information singular value: "
+        << final_rank.information_singular_value << '\n';
+
 
     // --------------------------------------------------
     // E3: Continue the independently reconstructed state.
@@ -632,8 +642,10 @@ int main(int argc, char** argv)
 
         const std::string argument = argv[1];
 
-        require(argument == "0" || argument == "2",
-                "Observation level must be 0 or 2");
+        require(argument == "0" ||
+                argument == "1" ||
+                argument == "2",
+                "Observation level must be 0, 1, or 2");
 
         const std::size_t observation_level =
             static_cast<std::size_t>(std::stoul(argument));
