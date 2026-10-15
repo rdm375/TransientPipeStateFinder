@@ -2,3 +2,6 @@ build/
 __pycache__/
 *.pyc
 .venv/
+
+# Local CMake build directories
+/build*/
