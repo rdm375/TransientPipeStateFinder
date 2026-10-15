@@ -73,6 +73,142 @@ void print_rank(
     std::cout << '\n';
 }
 
+
+void diagnose_rank_sensitivity(
+    const std::string& name,
+    const tpsf::FullSpaceProblem& problem)
+{
+    using namespace tpsf;
+
+    const Eigen::Index n =
+        static_cast<Eigen::Index>(
+            problem.free_variable_count());
+
+    const Eigen::Index m =
+        static_cast<Eigen::Index>(
+            problem.constraint_count());
+
+    const auto dense =
+        assemble_dense_full_space_subproblem(
+            problem, Eigen::VectorXd::Zero(n));
+
+    const Eigen::MatrixXd& A =
+        dense.constraint_jacobian;
+
+    const Eigen::MatrixXd& B =
+        dense.measurement_jacobian;
+
+    Eigen::MatrixXd C(A.rows()+B.rows(), n);
+
+    C.topRows(A.rows()) = A;
+    C.bottomRows(B.rows()) = B;
+
+    Eigen::MatrixXd K =
+        Eigen::MatrixXd::Zero(n+m, n+m);
+
+    K.topLeftCorner(n,n) = B.transpose()*B;
+    K.topRightCorner(n,m) = A.transpose();
+    K.bottomLeftCorner(m,n) = A;
+
+    std::cout
+        << "\n=== E4.2c rank sensitivity: "
+        << name << " ===\n";
+
+    constexpr double tolerances[] = {
+        1e-6, 1e-8, 1e-10, 1e-12, 1e-14
+    };
+
+    std::cout
+        << "tolerance rank_A rank_C rank_K "
+           "expected_K_nullity observed_K_nullity\n";
+
+    for (double tolerance : tolerances) {
+        const auto ra = numerical_rank(A, tolerance);
+        const auto rc = numerical_rank(C, tolerance);
+        const auto rk = numerical_rank(K, tolerance);
+
+        const Eigen::Index expected_nullity =
+            n-rc.rank + m-ra.rank;
+
+        const Eigen::Index observed_nullity =
+            n+m-rk.rank;
+
+        std::cout
+            << tolerance << ' '
+            << ra.rank << ' '
+            << rc.rank << ' '
+            << rk.rank << ' '
+            << expected_nullity << ' '
+            << observed_nullity << '\n';
+    }
+
+    if (n == 0) {
+        std::cout
+            << "nullspace_analysis_skipped: "
+               "no free variables\n";
+        return;
+    }
+
+    // Full V is required to recover the null space of
+    // a rectangular constraint Jacobian.
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(
+        A, Eigen::ComputeFullV);
+
+    const Eigen::VectorXd singular =
+        svd.singularValues();
+
+    const double sigma_max =
+        singular.size() ? singular[0] : 0.0;
+
+    std::cout << "A singular values:\n";
+
+    for (Eigen::Index i = 0; i < singular.size(); ++i)
+        std::cout << i << ' ' << singular[i] << '\n';
+
+    constexpr double null_tolerance = 1e-10;
+
+    const auto ra =
+        numerical_rank(A, null_tolerance);
+
+    const Eigen::Index nullity =
+        n-ra.rank;
+
+    const Eigen::MatrixXd Z =
+        svd.matrixV().rightCols(nullity);
+
+    const Eigen::MatrixXd AZ = A*Z;
+    const Eigen::MatrixXd BZ = B*Z;
+
+    std::cout
+        << "numerical_nullity_A=" << nullity
+        << " norm_AZ=" << AZ.norm()
+        << " norm_BZ=" << BZ.norm()
+        << '\n';
+
+    const auto rbz =
+        numerical_rank(BZ, null_tolerance);
+
+    print_rank("BZ", rbz);
+
+    std::cout
+        << "BZ_identified_directions="
+        << rbz.rank
+        << " BZ_unidentified_directions="
+        << nullity-rbz.rank
+        << '\n';
+
+    if (BZ.rows() > 0 && BZ.cols() > 0) {
+        Eigen::JacobiSVD<Eigen::MatrixXd> bsvd(BZ);
+
+        std::cout << "BZ singular values:\n";
+
+        const auto values = bsvd.singularValues();
+
+        for (Eigen::Index i = 0; i < values.size(); ++i)
+            std::cout << i << ' ' << values[i] << '\n';
+    }
+}
+
 void diagnose(
     const std::string& name,
     const tpsf::FullSpaceProblem& problem,
@@ -288,8 +424,14 @@ int main()
         diagnose(
             "all fixed", fixed, 2, 2, tolerance);
 
+        diagnose_rank_sensitivity(
+            "ordinary", ordinary);
+
+        diagnose_rank_sensitivity(
+            "no measurements", unobserved);
+
         std::cout
-            << "\nPASS E4.2b KKT structure diagnostic\n";
+            << "\nPASS E4.2b/E4.2c KKT structure diagnostic\n";
 
         return 0;
     }
