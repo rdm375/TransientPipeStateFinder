@@ -1,3 +1,4 @@
+#include "tpsf/compiled_provenance.hpp"
 
 #include "tpsf/dense_full_space_sqp.hpp"
 #include "tpsf/decision_timescales.hpp"
@@ -1128,20 +1129,8 @@ int main(int argc, char** argv)
         assessment.outlet_attenuation_time =
             outlet_attenuation.relative.time;
 
-        // Actual source revisions remain unknown until
-        // provenance is supplied by a verified build step.
-        // Never equate the validated baseline with the
-        // revision actually linked into this executable.
-
-        assessment.provenance.build_type =
-#ifdef NDEBUG
-            "Release";
-#else
-            "Debug";
-#endif
-
-        assessment.provenance.compiler =
-            std::string(__VERSION__);
+        // Provenance was embedded by the build, not queried at report time.
+        assessment.provenance = compiled_engineering_provenance();
 
         assessment.qualification = qualification;
         write_engineering_report(

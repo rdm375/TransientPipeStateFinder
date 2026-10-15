@@ -649,6 +649,24 @@ if(BUILD_TESTING)
 endif()
 
 
+# R5.2 — Build-time engineering report provenance
+# Always refresh Git metadata before compilation; only rewrite the header
+# when values change. This prevents runtime Git HEAD drift.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(TPSF_PROVENANCE_HEADER
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/tpsf/compiled_provenance.hpp")
+add_custom_target(tpsf_refresh_provenance ALL
+    COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_provenance.py"
+        --statefinder "${CMAKE_CURRENT_SOURCE_DIR}"
+        --solver "${PIPE_SIM_SOURCE_DIR}"
+        --output "${TPSF_PROVENANCE_HEADER}"
+        --build-type "$<CONFIG>"
+        --compiler "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+    BYPRODUCTS "${TPSF_PROVENANCE_HEADER}"
+    VERBATIM
+    COMMENT "Refreshing compiled Git provenance")
+
 # R3.1 reusable engineering reporting
 
 add_library(
@@ -668,6 +686,10 @@ target_include_directories(
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
+
+add_dependencies(tpsf_engineering_demo tpsf_refresh_provenance)
+target_include_directories(tpsf_engineering_demo PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 target_link_libraries(
     tpsf_engineering_demo
@@ -778,5 +800,26 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_state_qualification
         COMMAND tpsf_state_qualification_test
+    )
+endif()
+
+# R5.2 — Compiled provenance regression test
+if(BUILD_TESTING)
+    add_executable(tpsf_compiled_provenance_test
+        tests/cpp/compiled_provenance.cpp)
+    add_dependencies(tpsf_compiled_provenance_test tpsf_refresh_provenance)
+    target_include_directories(tpsf_compiled_provenance_test PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/generated"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    target_compile_features(tpsf_compiled_provenance_test PRIVATE cxx_std_20)
+    add_test(NAME tpsf_compiled_provenance COMMAND tpsf_compiled_provenance_test)
+endif()
+
+# Inherit the engineering report's complete dependency graph,
+# including Eigen and the forward solver.
+if(BUILD_TESTING)
+    target_link_libraries(
+        tpsf_compiled_provenance_test
+        PRIVATE tpsf_engineering_report
     )
 endif()
