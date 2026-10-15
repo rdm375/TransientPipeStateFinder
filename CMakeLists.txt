@@ -21,6 +21,7 @@ add_library(tpsf_forward STATIC
     src/full_space_observations.cpp
     src/physical_boundary_channels.cpp
     src/full_space_constraints.cpp
+    src/full_space_tangent.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -135,4 +136,17 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_full_space_constraints
         COMMAND tpsf_full_space_constraints_test)
+endif()
+
+# E2.4b.4 — Exact full-space discrete tangent-linear verification
+add_executable(tpsf_full_space_tangent_test
+    tests/cpp/full_space_tangent_test.cpp)
+
+target_link_libraries(tpsf_full_space_tangent_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_tangent
+        COMMAND tpsf_full_space_tangent_test)
 endif()
