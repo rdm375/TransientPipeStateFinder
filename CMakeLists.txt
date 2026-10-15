@@ -178,3 +178,17 @@ if(BUILD_TESTING)
         NAME tpsf_full_space_trajectory
         COMMAND tpsf_full_space_trajectory_test)
 endif()
+
+
+# E2.4b.7 — Scored forward trajectory recording
+add_executable(tpsf_scored_trajectory_test
+    tests/cpp/scored_trajectory_test.cpp)
+
+target_link_libraries(tpsf_scored_trajectory_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_scored_trajectory
+        COMMAND tpsf_scored_trajectory_test)
+endif()
