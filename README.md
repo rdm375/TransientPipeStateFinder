@@ -44,7 +44,8 @@ Implemented capabilities include:
 |---|---:|
 | Candidate analysis times | 1–8 seconds |
 | Restart horizon | 4 seconds |
-| Pressure tolerance | 10,000 Pa |
+| Pressure tolerance | 10,000 Pa (10 kPa; approximately 1.45 psi) |
+| Pressure tolerance relative to 6.9 MPa reference pressure | Approximately 0.145% |
 | Mass-flow tolerance | 0.1 kg/s |
 | Reconstruction convergence | 8/8 |
 | Qualified candidates | 8/8 |
@@ -57,6 +58,37 @@ Implemented capabilities include:
 The experiment is noise-free, uses identical forward and inverse models, and fixes most initial-state coordinates.
 
 It validates the numerical restart-qualification infrastructure but does not yet demonstrate the dissipation of meaningful initial-state deficiencies.
+
+
+**Pressure tolerance and operating scale.** The R5.1 absolute pressure
+tolerance is
+
+```math
+\varepsilon_p
+=10^4\ \mathrm{Pa}
+=10\ \mathrm{kPa}
+\approx1.45\ \mathrm{psi}.
+```
+
+Relative to a representative high-pressure transmission operating
+pressure of approximately 6.9 MPa (1,000 psi), this corresponds to
+
+```math
+\varepsilon_{p,\mathrm{rel}}
+=\frac{\varepsilon_p}{p_{\mathrm{ref}}}
+\approx0.145\%.
+```
+
+This percentage is provided to illustrate the scale of the error
+tolerance. The implemented qualification criterion continues to use
+the absolute pressure tolerance of 10 kPa.
+
+The relative percentage changes with operating pressure. Furthermore,
+an error that is small relative to operating pressure may be substantial
+relative to the amplitude of a small transient.
+
+The 10 kPa tolerance is an experimental R5.1 choice, not a universally
+applicable pipeline engineering acceptance standard.
 
 ## Next Research Milestone: R5.2
 
