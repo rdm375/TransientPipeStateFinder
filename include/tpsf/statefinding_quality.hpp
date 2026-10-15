@@ -16,6 +16,9 @@ struct StatefindingQuality {
 
     bool converged = false;
 
+    // Rank threshold used for constraint and measurement SVDs.
+    double relative_rank_tolerance = 1.0e-12;
+
     double objective = 0.0;
     double constraint_l2 = 0.0;
     double projected_gradient = 0.0;

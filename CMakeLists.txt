@@ -256,7 +256,11 @@ add_library(tpsf_dense_solver STATIC
     src/statefinding_quality.cpp
     src/engineering_sensitivity.cpp
     src/measurement_uncertainty.cpp
-    src/forecast_attenuation.cpp)
+    src/forecast_attenuation.cpp
+    src/decision_reliability.cpp
+    src/pipeline_decision.cpp
+    src/measurement_information.cpp
+    src/forecast_directional_uncertainty.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -472,3 +476,67 @@ if(BUILD_TESTING)
         NAME tpsf_forecast_tangent_validation
         COMMAND tpsf_forecast_tangent_validation_test)
 endif()
+
+# E5.5a — Linearized engineering decision reliability.
+add_executable(tpsf_decision_reliability_test
+    tests/cpp/decision_reliability_test.cpp)
+
+target_link_libraries(tpsf_decision_reliability_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_decision_reliability
+        COMMAND tpsf_decision_reliability_test)
+endif()
+
+
+# E5.5c.1: measurement-information decomposition
+add_executable(
+    tpsf_measurement_information_test
+    tests/cpp/measurement_information_test.cpp
+)
+
+target_link_libraries(
+    tpsf_measurement_information_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_measurement_information
+    COMMAND tpsf_measurement_information_test
+)
+
+
+# E5.5c.3: independent nonlinear directional validation
+add_executable(
+    tpsf_forecast_directional_validation_test
+    tests/cpp/forecast_directional_validation_test.cpp
+)
+
+target_link_libraries(
+    tpsf_forecast_directional_validation_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_forecast_directional_validation
+    COMMAND tpsf_forecast_directional_validation_test
+)
+
+
+# E5.5d: multidirectional measurement geometry
+add_executable(
+    tpsf_measurement_geometry_test
+    tests/cpp/measurement_geometry_test.cpp
+)
+
+target_link_libraries(
+    tpsf_measurement_geometry_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_measurement_geometry
+    COMMAND tpsf_measurement_geometry_test
+)

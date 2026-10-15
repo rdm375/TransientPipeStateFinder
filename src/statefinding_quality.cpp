@@ -50,6 +50,10 @@ StatefindingQuality assess_statefinding_quality(
 
     StatefindingQuality result;
 
+    result.relative_rank_tolerance =
+        options.relative_rank_tolerance;
+
+
     result.termination = solution.termination;
     result.converged = solution.converged();
 

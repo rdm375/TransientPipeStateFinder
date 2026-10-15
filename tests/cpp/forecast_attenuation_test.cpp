@@ -1,4 +1,5 @@
 #include "tpsf/forecast_attenuation.hpp"
+#include "tpsf/pipeline_decision.hpp"
 #include "tpsf/scheduled_forward.hpp"
 
 #include <Eigen/Dense>
@@ -254,6 +255,107 @@ void test_tangent_forecast(bool observed)
         << result.maximum_tangent_residual << '\n';
 }
 
+
+void test_pipeline_decision(bool observed)
+{
+    using namespace tpsf;
+
+    const auto problem = make_problem(observed);
+
+    DenseSQPResult solution;
+    solution.coordinates = Eigen::VectorXd::Zero(
+        static_cast<Eigen::Index>(
+            problem.free_variable_count()));
+    solution.termination = DenseSQPTermination::converged;
+
+    const auto quality =
+        assess_statefinding_quality(problem, solution);
+
+    Configuration forecast{
+        2,
+        10,
+        make_parameters(),
+        pipe_sim::DemandRamp{
+            5.0e6, 10.1, 10.1, 10.0
+        },
+        pipe_sim::NewtonOptions{
+            1.0e-8, 1.0e-10, 30, false
+        }
+    };
+
+    BoundarySchedule future;
+    future.inlet_pressure.assign(11, 5.0e6);
+    future.outlet_flow.assign(11, 10.1);
+
+    PipelineDecisionOptions options;
+    options.minimum_outlet_pressure_pa = 4.0e6;
+    options.measurement_radius = 1.0;
+
+    // Unresolved directions are initially unbounded.
+    const auto result = assess_pipeline_decision(
+        problem,
+        solution.coordinates,
+        quality,
+        forecast,
+        future,
+        options);
+
+    require(result.decision.points.size() == 11,
+            "Incorrect decision forecast length");
+
+    require(result.attenuation.maximum_tangent_residual
+                < 1.0e-6,
+            "Excessive decision tangent residual");
+
+    if (!observed) {
+        require(
+            result.decision.points.front().classification ==
+                DecisionClassification::indeterminate,
+            "Unobserved state must not receive a false certificate");
+
+        require(
+            !result.decision.points.front().finite_bounds,
+            "Unresolved uncertainty must remain unbounded");
+
+        // Explicitly bound unresolved scaled coordinates.
+        options.bound_unresolved = true;
+        options.unresolved_radius = 0.01;
+
+        const auto bounded = assess_pipeline_decision(
+            problem,
+            solution.coordinates,
+            quality,
+            forecast,
+            future,
+            options);
+
+        require(bounded.decision.points.front().finite_bounds,
+                "Explicit uncertainty bound was not applied");
+
+        require(
+            bounded.decision.points.front().uncertainty_radius
+                > 0.0,
+            "Expected positive forecast uncertainty");
+
+    } else {
+        require(quality.unresolved_directions == 0,
+                "Expected fully observed feasible subspace");
+
+        require(
+            result.decision.classification ==
+                DecisionClassification::certified_satisfactory,
+            "Expected satisfactory observed forecast");
+
+        for (const auto& point : result.decision.points)
+            require(point.finite_bounds,
+                    "Observed forecast must have finite bounds");
+    }
+
+    std::cout
+        << "PASS E5.5b pipeline decision observed="
+        << observed << '\n';
+}
+
 } // namespace
 
 int main()
@@ -261,6 +363,8 @@ int main()
     try {
         test_tangent_forecast(false);
         test_tangent_forecast(true);
+        test_pipeline_decision(false);
+        test_pipeline_decision(true);
 
         std::cout
             << "PASS E5.4 exact tangent-linear forecast\n";
