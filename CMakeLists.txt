@@ -23,6 +23,7 @@ add_library(tpsf_forward STATIC
     src/full_space_constraints.cpp
     src/full_space_tangent.cpp
     src/full_space_adjoint.cpp
+    src/full_space_trajectory.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -163,4 +164,17 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_full_space_adjoint
         COMMAND tpsf_full_space_adjoint_test)
+endif()
+
+# E2.4b.6 — Trajectory-level full-space constraints
+add_executable(tpsf_full_space_trajectory_test
+    tests/cpp/full_space_trajectory_test.cpp)
+
+target_link_libraries(tpsf_full_space_trajectory_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_trajectory
+        COMMAND tpsf_full_space_trajectory_test)
 endif()
