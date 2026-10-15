@@ -301,3 +301,19 @@ if(BUILD_TESTING)
         NAME tpsf_dense_full_space_sqp
         COMMAND tpsf_dense_full_space_sqp_test)
 endif()
+
+# E2.4b.11b.3 — Forward-generated synthetic reconstruction.
+add_executable(tpsf_synthetic_pipeline_reconstruction_test
+    tests/cpp/synthetic_pipeline_reconstruction_test.cpp)
+
+target_link_libraries(
+    tpsf_synthetic_pipeline_reconstruction_test
+    PRIVATE
+        tpsf_dense_solver
+        tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_synthetic_pipeline_reconstruction
+        COMMAND tpsf_synthetic_pipeline_reconstruction_test)
+endif()
