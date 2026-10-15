@@ -612,3 +612,17 @@ if(BUILD_TESTING)
     add_test(NAME tpsf_decision_sufficiency
         COMMAND tpsf_decision_sufficiency_experiment)
 endif()
+
+
+# E5.8a — Decision-oriented measurement timing and precision.
+add_executable(tpsf_measurement_design_experiment
+    tests/cpp/measurement_design_experiment.cpp)
+
+target_link_libraries(tpsf_measurement_design_experiment
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_design
+        COMMAND tpsf_measurement_design_experiment)
+endif()
