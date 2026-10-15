@@ -1023,6 +1023,122 @@ a statistical confidence statement.
 The tolerances must be selected according to the
 intended engineering application.
 
+
+#### Why Is the Qualification Threshold 1?
+
+The qualification metric combines prediction errors with different
+physical units and different engineering tolerances.
+
+Each prediction error is divided by its corresponding allowable error,
+producing a dimensionless ratio.
+
+The maximum of these ratios is the qualification metric:
+
+```math
+Q(t_k,H)
+=
+\max\left(
+\frac{E_p(t_k,H)}{\varepsilon_p},
+\frac{E_{\dot m}(t_k,H)}{\varepsilon_{\dot m}}
+\right).
+```
+
+Consequently, the acceptance condition
+
+```math
+\boxed{Q(t_k,H)\le 1}
+```
+
+is mathematically equivalent to requiring both
+
+```math
+E_p(t_k,H)\le\varepsilon_p
+```
+
+and
+
+```math
+E_{\dot m}(t_k,H)\le\varepsilon_{\dot m}.
+```
+
+**The number 1 is not an independently selected error tolerance.**
+It is the normalized acceptance boundary. The actual engineering
+requirements are the dimensional tolerances.
+
+##### Numerical Example
+
+Consider the tolerances used in R5.1:
+
+```math
+\varepsilon_p=10{,}000\;\mathrm{Pa},
+\qquad
+\varepsilon_{\dot m}=0.1\;\mathrm{kg/s}.
+```
+
+Suppose the maximum prediction errors over the restart horizon are
+
+```math
+E_p=6{,}000\;\mathrm{Pa},
+\qquad
+E_{\dot m}=0.08\;\mathrm{kg/s}.
+```
+
+Then
+
+```math
+\begin{aligned}
+Q(t_k,H)
+&=
+\max\left(
+\frac{6000}{10000},
+\frac{0.08}{0.1}
+\right)\\
+&=\max(0.6,0.8)\\
+&=0.8.
+\end{aligned}
+```
+
+Because $Q=0.8\le1$, both engineering tolerances are satisfied.
+
+If the mass-flow error instead increases to
+$0.12\;\mathrm{kg/s}$, then
+
+```math
+Q(t_k,H)=\max(0.6,1.2)=1.2.
+```
+
+The state fails qualification because the mass-flow prediction
+error exceeds its allowable tolerance.
+
+##### Interpretation
+
+| Qualification metric | Meaning |
+|---|---|
+| $Q=0$ | Zero measured prediction error |
+| $0<Q<1$ | All monitored errors are below their tolerances |
+| $Q=1$ | At least one monitored error reaches its tolerance |
+| $Q>1$ | At least one engineering tolerance is exceeded |
+
+This normalization permits additional engineering quantities
+to be included in the qualification criterion without changing
+the acceptance threshold.
+
+However, the qualification result depends on the selected
+engineering tolerances.
+
+More explicitly, qualification time depends on the restart
+horizon and tolerances:
+
+```math
+t_Q=t_Q(H,\varepsilon_p,\varepsilon_{\dot m}).
+```
+
+It also depends on the measurement configuration, operating
+scenario, reconstruction method, and tested analysis-time grid.
+
+A state may qualify for one engineering application but fail
+for another application requiring tighter tolerances.
+
 #### 3.6 Persistent State Qualification Time
 
 A candidate may satisfy the qualification criterion
