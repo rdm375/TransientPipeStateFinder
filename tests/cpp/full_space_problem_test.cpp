@@ -300,6 +300,103 @@ void test_transpose(int n, int steps)
          "Scaled JVP/VJP transpose identity");
 }
 
+
+void test_measurement_adjoint(int n, int steps)
+{
+    const FullSpaceProblem problem(
+        configuration(n, steps));
+
+    auto u = direction(problem.free_variable_count());
+
+    for (double& value : u)
+        value *= 0.01;
+
+    const auto v =
+        direction(problem.free_variable_count());
+
+    const auto residual = problem.measurement_residual(u);
+    const auto w = dual(residual.size());
+
+    const auto Bv = problem.measurement_jvp(u, v);
+    const auto BTw = problem.measurement_vjp(u, w);
+
+    require(BTw.size() == v.size(),
+            "Measurement adjoint dimension mismatch");
+
+    near(dot(Bv, w), dot(v, BTw),
+         1.0e-10, 2.0e-12,
+         "Measurement adjoint identity");
+
+    // Independent dense reference: assemble B column by column
+    // using the existing JVP implementation.
+    std::vector<double> dense_transpose(v.size(), 0.0);
+
+    for (std::size_t j = 0; j < v.size(); ++j) {
+        std::vector<double> basis(v.size(), 0.0);
+        basis[j] = 1.0;
+
+        const auto column =
+            problem.measurement_jvp(u, basis);
+
+        dense_transpose[j] = dot(column, w);
+    }
+
+    for (std::size_t j = 0; j < v.size(); ++j)
+        near(BTw[j], dense_transpose[j],
+             1.0e-12, 2.0e-12,
+             "Measurement dense transpose parity");
+
+    // Directional finite-difference verification.
+    constexpr double h = 1.0e-4;
+
+    auto plus = u;
+    auto minus = u;
+
+    for (std::size_t j = 0; j < v.size(); ++j) {
+        plus[j] += h*v[j];
+        minus[j] -= h*v[j];
+    }
+
+    const auto rp = problem.measurement_residual(plus);
+    const auto rm = problem.measurement_residual(minus);
+
+    require(rp.size() == Bv.size() &&
+            rm.size() == Bv.size(),
+            "Measurement FD dimension mismatch");
+
+    for (std::size_t i = 0; i < Bv.size(); ++i) {
+        const double numerical =
+            (rp[i]-rm[i])/(2.0*h);
+
+        near(numerical, Bv[i],
+             1.0e-6, 1.0e-8,
+             "Measurement JVP finite difference");
+    }
+
+    // The gradient of 0.5 ||r||^2 is B^T r.
+    const auto gradient =
+        problem.evaluate(u).objective_gradient;
+
+    const auto adjoint_gradient =
+        problem.measurement_vjp(u, residual);
+
+    for (std::size_t j = 0; j < gradient.size(); ++j)
+        near(gradient[j], adjoint_gradient[j],
+             1.0e-10, 2.0e-12,
+             "Measurement objective gradient parity");
+
+    expect_invalid([&] {
+        problem.measurement_vjp(u, {});
+    });
+
+    auto extra = w;
+    extra.push_back(0.0);
+
+    expect_invalid([&] {
+        problem.measurement_vjp(u, extra);
+    });
+}
+
 void test_objective_gradient()
 {
     const FullSpaceProblem problem(configuration());
@@ -495,6 +592,10 @@ int main()
         for (int n : {2, 5, 10})
             for (int steps : {1, 2, 4})
                 test_transpose(n, steps);
+
+        for (int n : {2, 5, 10})
+            for (int steps : {1, 2, 4})
+                test_measurement_adjoint(n, steps);
 
         test_objective_gradient();
         test_constraint_finite_difference();

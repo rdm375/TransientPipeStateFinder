@@ -28,6 +28,8 @@ add_library(tpsf_forward STATIC
     src/full_space_trajectory_derivatives.cpp
     src/full_space_measurement_objective.cpp
     src/full_space_problem.cpp
+    src/matrix_free_kkt.cpp
+    src/minres.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -250,7 +252,17 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 add_library(tpsf_dense_solver STATIC
     src/dense_constrained_least_squares.cpp
     src/dense_full_space_subproblem.cpp
-    src/dense_full_space_sqp.cpp)
+    src/dense_full_space_sqp.cpp
+    src/statefinding_quality.cpp
+    src/engineering_sensitivity.cpp
+    src/measurement_uncertainty.cpp
+    src/forecast_attenuation.cpp
+    src/decision_reliability.cpp
+    src/pipeline_decision.cpp
+    src/measurement_information.cpp
+    src/forecast_directional_uncertainty.cpp
+    src/sensitivity_decay.cpp
+    src/decision_timescales.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -351,6 +363,10 @@ if(BUILD_TESTING)
         COMMAND tpsf_independent_initial_pressure_test 0)
 
     add_test(
+        NAME tpsf_independent_initial_pressure_intermediate
+        COMMAND tpsf_independent_initial_pressure_test 1)
+
+    add_test(
         NAME tpsf_independent_initial_pressure_delayed
         COMMAND tpsf_independent_initial_pressure_test 2)
 endif()
@@ -367,4 +383,396 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_forecast_continuation
         COMMAND tpsf_forecast_continuation_test)
+endif()
+
+# E4.2b — Dense diagnostic oracle for Jacobian structure,
+# numerical rank, and local identifiability.
+add_executable(tpsf_kkt_structure_diagnostic
+    tests/cpp/kkt_structure_diagnostic.cpp)
+
+target_link_libraries(tpsf_kkt_structure_diagnostic
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_kkt_structure_diagnostic
+        COMMAND tpsf_kkt_structure_diagnostic)
+endif()
+
+# E4.3b.1 — Matrix-free symmetric Krylov solver.
+add_executable(tpsf_minres_test
+    tests/cpp/minres_test.cpp)
+
+target_link_libraries(tpsf_minres_test
+    PRIVATE tpsf_forward Eigen3::Eigen)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_minres
+        COMMAND tpsf_minres_test)
+endif()
+
+
+# E5.1 — Statefinding quality and local observability.
+add_executable(tpsf_statefinding_quality_test
+    tests/cpp/statefinding_quality_test.cpp)
+
+target_link_libraries(tpsf_statefinding_quality_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_statefinding_quality
+        COMMAND tpsf_statefinding_quality_test)
+endif()
+
+
+# E5.2 — Engineering quantity sensitivity.
+add_executable(tpsf_engineering_sensitivity_test
+    tests/cpp/engineering_sensitivity_test.cpp)
+
+target_link_libraries(tpsf_engineering_sensitivity_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_engineering_sensitivity
+        COMMAND tpsf_engineering_sensitivity_test)
+endif()
+
+
+# E5.3 — Measurement uncertainty propagation.
+add_executable(tpsf_measurement_uncertainty_test
+    tests/cpp/measurement_uncertainty_test.cpp)
+
+target_link_libraries(tpsf_measurement_uncertainty_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_uncertainty
+        COMMAND tpsf_measurement_uncertainty_test)
+endif()
+
+
+# E5.4 — Exact tangent-linear forecast attenuation.
+add_executable(tpsf_forecast_attenuation_test
+    tests/cpp/forecast_attenuation_test.cpp)
+
+target_link_libraries(tpsf_forecast_attenuation_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_forecast_attenuation
+        COMMAND tpsf_forecast_attenuation_test)
+endif()
+
+
+# E5.4 — Independent tangent-linear forecast verification.
+add_executable(tpsf_forecast_tangent_validation_test
+    tests/cpp/forecast_tangent_validation_test.cpp)
+
+target_link_libraries(
+    tpsf_forecast_tangent_validation_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_forecast_tangent_validation
+        COMMAND tpsf_forecast_tangent_validation_test)
+endif()
+
+# E5.5a — Linearized engineering decision reliability.
+add_executable(tpsf_decision_reliability_test
+    tests/cpp/decision_reliability_test.cpp)
+
+target_link_libraries(tpsf_decision_reliability_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_decision_reliability
+        COMMAND tpsf_decision_reliability_test)
+endif()
+
+
+# E5.5c.1: measurement-information decomposition
+add_executable(
+    tpsf_measurement_information_test
+    tests/cpp/measurement_information_test.cpp
+)
+
+target_link_libraries(
+    tpsf_measurement_information_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_measurement_information
+    COMMAND tpsf_measurement_information_test
+)
+
+
+# E5.5c.3: independent nonlinear directional validation
+add_executable(
+    tpsf_forecast_directional_validation_test
+    tests/cpp/forecast_directional_validation_test.cpp
+)
+
+target_link_libraries(
+    tpsf_forecast_directional_validation_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_forecast_directional_validation
+    COMMAND tpsf_forecast_directional_validation_test
+)
+
+
+# E5.5d: multidirectional measurement geometry
+add_executable(
+    tpsf_measurement_geometry_test
+    tests/cpp/measurement_geometry_test.cpp
+)
+
+target_link_libraries(
+    tpsf_measurement_geometry_test
+    PRIVATE tpsf_dense_solver
+)
+
+add_test(
+    NAME tpsf_measurement_geometry
+    COMMAND tpsf_measurement_geometry_test
+)
+
+
+# E5.6a: persistent sensitivity attenuation diagnostics
+add_executable(
+    tpsf_sensitivity_decay_test
+    tests/cpp/sensitivity_decay_test.cpp
+)
+
+target_link_libraries(
+    tpsf_sensitivity_decay_test
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_sensitivity_decay
+        COMMAND tpsf_sensitivity_decay_test
+    )
+endif()
+
+
+# E5.6b: operational decision reliability timescales
+add_executable(
+    tpsf_decision_timescales_test
+    tests/cpp/decision_timescales_test.cpp
+)
+
+target_link_libraries(
+    tpsf_decision_timescales_test
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_decision_timescales
+        COMMAND tpsf_decision_timescales_test
+    )
+endif()
+
+# E5.7b — Measurement sufficiency for engineering decisions.
+add_executable(tpsf_measurement_sufficiency_experiment
+    tests/cpp/measurement_sufficiency_experiment.cpp)
+
+target_link_libraries(
+    tpsf_measurement_sufficiency_experiment
+    PRIVATE
+        tpsf_dense_solver
+        tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_sufficiency
+        COMMAND tpsf_measurement_sufficiency_experiment)
+endif()
+
+# E5.7c — Decision sufficiency with incomplete state identifiability.
+add_executable(tpsf_decision_sufficiency_experiment
+    tests/cpp/decision_sufficiency_experiment.cpp)
+
+target_link_libraries(tpsf_decision_sufficiency_experiment
+    PRIVATE tpsf_dense_solver tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(NAME tpsf_decision_sufficiency
+        COMMAND tpsf_decision_sufficiency_experiment)
+endif()
+
+
+# E5.8a — Decision-oriented measurement timing and precision.
+add_executable(tpsf_measurement_design_experiment
+    tests/cpp/measurement_design_experiment.cpp)
+
+target_link_libraries(tpsf_measurement_design_experiment
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_measurement_design
+        COMMAND tpsf_measurement_design_experiment)
+endif()
+
+
+# R1-R3 integrated engineering demonstration
+
+add_executable(
+    tpsf_engineering_demo
+    apps/engineering_demo.cpp
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_engineering_demo
+        COMMAND tpsf_engineering_demo
+            "${CMAKE_CURRENT_BINARY_DIR}/engineering-demo-test"
+    )
+endif()
+
+
+# R3.1 reusable engineering reporting
+
+add_library(
+    tpsf_engineering_report
+    STATIC
+    src/engineering_report.cpp
+)
+
+target_link_libraries(
+    tpsf_engineering_report
+    PUBLIC
+    tpsf_dense_solver
+)
+
+target_include_directories(
+    tpsf_engineering_report
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_engineering_report
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_engineering_report_test
+        tests/cpp/engineering_report.cpp
+    )
+
+    target_link_libraries(
+        tpsf_engineering_report_test
+        PRIVATE
+        tpsf_engineering_report
+    )
+
+    add_test(
+        NAME tpsf_engineering_report
+        COMMAND tpsf_engineering_report_test
+    )
+endif()
+
+
+# R4.1 decision-boundary sweep
+
+add_library(
+    tpsf_decision_boundary_sweep
+    STATIC
+    src/decision_boundary_sweep.cpp
+)
+
+target_link_libraries(
+    tpsf_decision_boundary_sweep
+    PUBLIC
+    tpsf_dense_solver
+)
+
+target_include_directories(
+    tpsf_decision_boundary_sweep
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_decision_boundary_sweep
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_decision_boundary_sweep_test
+        tests/cpp/decision_boundary_sweep.cpp
+    )
+
+    target_link_libraries(
+        tpsf_decision_boundary_sweep_test
+        PRIVATE
+        tpsf_decision_boundary_sweep
+    )
+
+    add_test(
+        NAME tpsf_decision_boundary_sweep
+        COMMAND tpsf_decision_boundary_sweep_test
+    )
+endif()
+
+
+# R5.1 causal state qualification
+
+add_library(
+    tpsf_state_qualification
+    STATIC
+    src/state_qualification.cpp
+)
+
+target_include_directories(
+    tpsf_state_qualification
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+target_link_libraries(
+    tpsf_engineering_demo
+    PRIVATE
+    tpsf_state_qualification
+)
+
+if(BUILD_TESTING)
+    add_executable(
+        tpsf_state_qualification_test
+        tests/cpp/state_qualification.cpp
+    )
+
+    target_link_libraries(
+        tpsf_state_qualification_test
+        PRIVATE
+        tpsf_state_qualification
+    )
+
+    add_test(
+        NAME tpsf_state_qualification
+        COMMAND tpsf_state_qualification_test
+    )
 endif()

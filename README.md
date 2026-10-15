@@ -1,10 +1,26 @@
 # TransientPipeStateFinder
 
-Engineering application foundation (E1) for single-pipe isothermal transient state estimation and forecasting.
+Research implementation for single-pipe isothermal transient state estimation, uncertainty propagation, and engineering decision reliability.
 
 > The purpose of our research is not simply to reconstruct a pipeline state. It is to determine how much measurement information is needed, how rapidly uncertainty loses its influence on future behavior, and whether the resulting predictions become sufficiently reliable in time to support an engineering decision.
 
-**Status:** E1 scaffold. Forward integration is wired to the external `isothermal-pipe-sim` source tree; a local build and physics smoke test require that solver. Estimation, adjoints, optimization, uncertainty propagation, and reporting are **not yet implemented**. No operational claims.
+**Status:** E5.7b research checkpoint completed and validated.
+The project implements constrained full-space reconstruction,
+local identifiability analysis, exact discrete tangent-linear
+forecast sensitivities, uncertainty propagation, and sampled-time
+engineering decision classification.
+
+The E5.7b experiment passed 46/46 regression tests at commit
+`ae83939` on branch `feature/e4-scalable-sqp`.
+
+These are research results for synthetic single-pipe cases.
+They are not nonlinear uncertainty certificates or claims of
+production scalability or operational certification.
+
+The engineering report generator remains planned.
+
+See [Research roadmap](docs/RESEARCH_ROADMAP.md) and
+[E5.7c experimental specification](docs/E57C_DECISION_SUFFICIENCY.md).
 
 ## Quick start
 
