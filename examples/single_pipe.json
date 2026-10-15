@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "pipeline": {
+    "length_m": 50000.0,
+    "diameter_m": 0.6,
+    "cells": 20,
+    "temperature_K": 288.15,
+    "compressibility_Z": 0.9
+  },
+  "numerics": {
+    "dt_s": 10.0,
+    "steps": 60,
+    "theta": 0.65
+  },
+  "boundary": {
+    "inlet_pressure_Pa": 8000000.0,
+    "outlet_mass_flow_kg_s": 100.0
+  },
+  "metadata": {
+    "description": "Illustrative configuration; not calibrated field data"
+  }
+}

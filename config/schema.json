@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TransientPipeStateFinder E1 configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pipeline",
+    "numerics",
+    "boundary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "length_m",
+        "diameter_m",
+        "cells",
+        "temperature_K",
+        "compressibility_Z"
+      ],
+      "properties": {
+        "length_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "diameter_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "cells": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "temperature_K": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "compressibility_Z": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "numerics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dt_s",
+        "steps",
+        "theta"
+      ],
+      "properties": {
+        "dt_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "theta": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inlet_pressure_Pa",
+        "outlet_mass_flow_kg_s"
+      ],
+      "properties": {
+        "inlet_pressure_Pa": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "outlet_mass_flow_kg_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}
