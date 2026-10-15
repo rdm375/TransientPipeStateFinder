@@ -17,6 +17,7 @@ endif()
 add_library(tpsf_forward STATIC
     src/forward.cpp
     src/scheduled_forward.cpp
+    src/forecast_continuation.cpp
     src/objective.cpp
     src/full_space_observations.cpp
     src/physical_boundary_channels.cpp
@@ -352,4 +353,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_independent_initial_pressure_delayed
         COMMAND tpsf_independent_initial_pressure_test 2)
+endif()
+
+
+# E3 — Forecast continuation from reconstructed states
+add_executable(tpsf_forecast_continuation_test
+    tests/cpp/forecast_continuation_test.cpp)
+
+target_link_libraries(tpsf_forecast_continuation_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_forecast_continuation
+        COMMAND tpsf_forecast_continuation_test)
 endif()

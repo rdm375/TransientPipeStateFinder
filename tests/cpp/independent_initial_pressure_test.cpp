@@ -1,4 +1,5 @@
 #include "tpsf/dense_full_space_sqp.hpp"
+#include "tpsf/forecast_continuation.hpp"
 #include "tpsf/dense_full_space_subproblem.hpp"
 #include "tpsf/scheduled_forward.hpp"
 
@@ -510,6 +511,110 @@ void test_independent_initial_pressure(std::size_t observation_level)
 
     require(final_rank.measurement_rank == 1,
             "Final measurement rank changed");
+
+
+    // --------------------------------------------------
+    // E3: Continue the independently reconstructed state.
+    // --------------------------------------------------
+
+    auto forecast_configuration = cfg;
+    forecast_configuration.steps = 10;
+
+    BoundarySchedule future;
+
+    const double terminal_time =
+        static_cast<double>(cfg.steps) *
+        cfg.parameters.dt;
+
+    const double terminal_outlet_flow =
+        schedule.outlet_flow.back();
+
+    for (int k = 0; k <= forecast_configuration.steps; ++k) {
+        const double future_time =
+            static_cast<double>(k) *
+            forecast_configuration.parameters.dt;
+
+        future.inlet_pressure.push_back(
+            schedule.inlet_pressure.back());
+
+        // Continuous at the reconstruction/forecast
+        // junction, followed by a modest demand increase.
+        future.outlet_flow.push_back(
+            terminal_outlet_flow +
+            0.02*future_time);
+    }
+
+    const auto forecast =
+        forecast_from_full_space(
+            forecast_configuration,
+            reconstructed,
+            future);
+
+    const auto reference_forecast =
+        forecast_from_full_space(
+            forecast_configuration,
+            truth,
+            future);
+
+    require(
+        forecast.summary.info == 0 &&
+        forecast.summary.completed_steps ==
+            forecast_configuration.steps,
+        "SQP-initialized forecast failed");
+
+    require(
+        reference_forecast.summary.info == 0 &&
+        reference_forecast.summary.completed_steps ==
+            forecast_configuration.steps,
+        "Reference forecast failed");
+
+    double maximum_pressure_error = 0.0;
+    double maximum_linepack_error = 0.0;
+
+    for (int k = 0; k <= forecast_configuration.steps; ++k) {
+        const auto index = static_cast<std::size_t>(k);
+
+        maximum_pressure_error = std::max(
+            maximum_pressure_error,
+            std::abs(
+                forecast.summary.outlet_pressure[index] -
+                reference_forecast.summary.outlet_pressure[index]));
+
+        maximum_linepack_error = std::max(
+            maximum_linepack_error,
+            std::abs(
+                forecast.summary.linepack[index] -
+                reference_forecast.summary.linepack[index]));
+    }
+
+    std::cout
+        << "===== SQP-INITIALIZED FORECAST =====\n"
+        << "Reconstruction terminal time [s]: "
+        << terminal_time << '\n'
+        << "Forecast duration [s]: "
+        << forecast_configuration.steps *
+           forecast_configuration.parameters.dt << '\n'
+        << "Maximum outlet pressure error [Pa]: "
+        << maximum_pressure_error << '\n'
+        << "Maximum linepack error [kg]: "
+        << maximum_linepack_error << '\n'
+        << "Maximum conservation defect [kg/s]: "
+        << forecast.summary.max_mass_defect << '\n';
+
+    require(
+        maximum_pressure_error < 1.0,
+        "SQP forecast outlet-pressure error exceeds 1 Pa");
+
+    require(
+        maximum_linepack_error < 1.0e-3,
+        "SQP forecast linepack error exceeds 1 g");
+
+    require(
+        forecast.summary.max_mass_defect < 1.0e-5,
+        "SQP forecast mass-conservation defect too large");
+
+    std::cout
+        << "PASS E3 SQP reconstruction-to-forecast integration\n";
 
     std::cout
         << "PASS E2.4b.11b.4b independent initial pressure\n";
