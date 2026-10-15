@@ -17,6 +17,8 @@ endif()
 add_library(tpsf_forward STATIC
     src/forward.cpp
     src/scheduled_forward.cpp
+    src/objective.cpp
+    src/full_space_observations.cpp
 )
 target_include_directories(tpsf_forward PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(tpsf_forward PUBLIC pipe_sim_cpp_core)
@@ -75,4 +77,32 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_scheduled_forward
         COMMAND tpsf_scheduled_forward_test)
+endif()
+
+
+# E2.4a — Four-channel objective evaluation
+add_executable(tpsf_objective_test
+    tests/cpp/objective_test.cpp)
+
+target_link_libraries(tpsf_objective_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_objective
+        COMMAND tpsf_objective_test)
+endif()
+
+
+# E2.4b.1 — Full-space observation variables
+add_executable(tpsf_full_space_observations_test
+    tests/cpp/full_space_observations_test.cpp)
+
+target_link_libraries(tpsf_full_space_observations_test
+    PRIVATE tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_full_space_observations
+        COMMAND tpsf_full_space_observations_test)
 endif()
