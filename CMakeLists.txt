@@ -255,7 +255,8 @@ add_library(tpsf_dense_solver STATIC
     src/dense_full_space_sqp.cpp
     src/statefinding_quality.cpp
     src/engineering_sensitivity.cpp
-    src/measurement_uncertainty.cpp)
+    src/measurement_uncertainty.cpp
+    src/forecast_attenuation.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -441,4 +442,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_measurement_uncertainty
         COMMAND tpsf_measurement_uncertainty_test)
+endif()
+
+
+# E5.4 — Exact tangent-linear forecast attenuation.
+add_executable(tpsf_forecast_attenuation_test
+    tests/cpp/forecast_attenuation_test.cpp)
+
+target_link_libraries(tpsf_forecast_attenuation_test
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_forecast_attenuation
+        COMMAND tpsf_forecast_attenuation_test)
 endif()
