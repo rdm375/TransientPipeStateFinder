@@ -1,5 +1,11 @@
 # TransientPipeStateFinder
 
+## Dedication
+
+> To Jenneí, my philosopher-maker. Without her, I would not have found myself in a position to undertake this work, nor the motivation to see it through to completion. Only God Himself knows what I did to deserve having her in my life.
+
+---
+
 **Research software for reconstructing transient pipeline states and determining when those states are sufficiently accurate to initialize subsequent engineering simulations.**
 
 > The purpose of our research is not simply to reconstruct a pipeline state. It is to determine how much measurement information is needed, how rapidly uncertainty loses its influence on future behavior, and whether the resulting predictions become sufficiently reliable in time to support an engineering decision.
