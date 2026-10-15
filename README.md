@@ -152,7 +152,68 @@ See [docs/LICENSING.md](docs/LICENSING.md).
 
 ## Mathematical Formulation
 
+<!-- TPSF RESEARCH NARRATIVE START -->
+### The research problem: from measurements to a trustworthy forecast
+
+A transient simulator requires an internal pipeline state: pressures, mass
+flows, and associated thermodynamic quantities throughout the pipe. In
+practice, only a limited set of boundary measurements is available. Different
+internal states may agree with those measurements while producing different
+future transients. **Fitting the measurements is therefore not the same as
+earning confidence in a forecast.**
+
+The research asks two related, but distinct, questions:
+
+1. **Reconstruction:** Which trajectories satisfy the discrete physics and
+   best explain the measurements available *so far*?
+2. **Qualification:** Is the remaining uncertainty sufficiently small—or
+   sufficiently unimportant to the requested predictions—that a nonlinear
+   forecast initialized from the reconstruction meets engineering tolerances?
+
+The reasoning proceeds through a sequence of limitations and remedies:
+
+| Question or limitation | Mathematical response | What it establishes |
+|---|---|---|
+| We cannot measure the interior directly. | Governing equations and conservative discretization | Which trajectories are physically admissible |
+| Observations are sparse, incomplete, and possibly noisy. | Constrained weighted least squares | A best-fitting physically consistent trajectory |
+| The inverse problem is nonlinear. | Scaled full-space SQP | A numerical reconstruction candidate and convergence diagnostics |
+| A good fit need not determine a unique state. | Constraint-null-space and measurement-rank analysis | Which feasible perturbations are poorly resolved |
+| Unresolved state errors may or may not affect a forecast. | Discrete tangent sensitivities and adjoints | How perturbations influence future predictions |
+| Linear sensitivities do not validate a nonlinear forecast. | Independent nonlinear restarts | Actual synthetic-reference prediction errors over a horizon |
+| Reliability may change as observations accumulate. | Persistent sampled qualification time | The earliest tested analysis time meeting the acceptance criterion thereafter |
+| Real operations have no known internal truth. | Uncertainty sets and robust or statistical qualification | A prospective qualification *research objective*, not a current guarantee |
+
+The distinction between **why**, **how**, and **what follows** is used below.
+A derivation answers *how*; the motivating question explains *why*; the
+remaining limitation explains why the next mathematical step is necessary.
+
+**Scope of evidence.** R5.1 demonstrates the causal reconstruction and
+nonlinear restart workflow under noise-free, identical-model conditions with
+restricted initial-state unknowns. It does not establish a nontrivial physical
+spin-up time or operational uncertainty certificate.
+
+<!-- TPSF RESEARCH NARRATIVE END -->
+
+
 ### 1. Full-Space Constrained State Estimation
+
+
+**Why this step?** The simulator needs an entire physical state, but we observe
+only a few boundary quantities. Conservation and momentum balance couple the
+unknown interior variables; measurement fit alone cannot enforce that coupling.
+
+**How does it answer the question?** Represent the state, prescribed boundary
+inputs, and reconstructed observation channels over the full analysis interval.
+Minimize normalized discrepancies only for available observations while
+enforcing the *same discrete equations* used by the forward solver. Keep fixed
+and free coordinates explicit so experiments do not inadvertently reveal
+synthetic truth.
+
+**What do we learn?** We obtain a candidate trajectory that is consistent with
+the chosen model and best fits the available data *within the solved problem*.
+We do **not** yet know whether the candidate is unique, globally optimal, or
+predictively reliable. That motivates numerical optimization, identifiability,
+and independent qualification.
 
 The statefinder reconstructs a transient pipeline trajectory by minimizing
 discrepancies between measured and reconstructed boundary quantities,
@@ -490,6 +551,21 @@ of TransientPipeStateFinder.
 
 ### 2. How Reconstruction Is Solved
 
+
+**Why this step?** Writing an inverse problem does not solve it. The constraints
+are nonlinear, the trajectory is high-dimensional, and missing measurements
+can leave entire feasible directions undetermined.
+
+**How does it answer the question?** Linearize the actual discrete constraints
+and measurement residuals, solve rank-aware equality-constrained least-squares
+subproblems, and globalize with the implemented exact-penalty merit function
+and backtracking. Check both constraint feasibility and projected stationarity.
+
+**What do we learn?** A converged SQP solve supports a *numerically consistent
+reconstruction*, not a unique state or accurate forecast. Rank diagnostics
+identify unresolved local directions. The detailed SVD construction appears
+in Section 5.
+
 #### 2.1 The Inverse Problem
 
 The reconstruction problem is to determine a physically consistent
@@ -766,6 +842,23 @@ will produce sufficiently accurate future predictions.
 ---
 
 ### 3. How Qualification Is Determined
+
+
+**Why this step?** A reconstructed trajectory can match the observed past and
+still produce an unacceptable future. An optimizer's residual is therefore not
+an engineering acceptance test.
+
+**How does it answer the question?** At each analysis time, reconstruct using
+only the measurement prefix, extract the terminal physical state, and restart
+the independent nonlinear forward solver with specified future inputs. Compare
+the complete restart trajectory with synthetic truth using engineering-scaled
+pressure and mass-flow errors. Require acceptance at every subsequently tested
+analysis time.
+
+**What do we learn?** The sampled qualification time is an *experiment-specific*
+predictive validation result. It is conditional on the horizon, tolerances,
+candidate grid, future inputs, and available synthetic reference. It does not
+certify untested times or real operations without truth.
 
 #### 3.1 Qualification Is a Predictive Question
 
@@ -1122,6 +1215,22 @@ result of TransientPipeStateFinder.
 
 ### 4. Governing Equations and Conservation
 
+
+**Why this step?** Sparse boundary measurements are insufficient unless
+physics restricts the interior evolution. A reconstruction that fits sensors
+but violates mass conservation is not an acceptable pipeline state.
+
+**How does it answer the question?** The isothermal continuity and momentum
+equations, thermodynamic closure, staggered variables, and implicit residual
+define the admissible dynamics. The statefinder directly reuses the validated
+forward residual rather than creating a second physical discretization.
+The global inventory identity supplies a distinct conservation diagnostic.
+
+**What do we learn?** We can separate a genuine inlet/outlet mass imbalance
+(which changes linepack) from a numerical conservation defect. This section
+states the continuum model for interpretation; the precise term-by-term
+discrete momentum closure must be verified against the linked solver.
+
 #### 4.1 Isothermal Compressible Flow
 
 The forward model describes transient compressible flow through a
@@ -1334,6 +1443,22 @@ measurement fitting and state qualification.
 
 ### 5. The Implemented Dense SQP Method
 
+
+**Why this step?** A generic KKT equation hides what happens when the
+linearized constraints or measurements are rank deficient—a central issue
+for incomplete sensor coverage.
+
+**How does it answer the question?** Compute an SVD-based particular step
+for the linearized equality constraints, test its compatibility, and optimize
+the remaining measurement residual over the constraint null space. Apply an
+L1-penalty merit function and Armijo backtracking to the nonlinear step.
+
+**What do we learn?** The reduced measurement rank and unresolved-direction
+count quantify *local numerical information*, not statistical confidence.
+Failure modes are explicit rather than silently interpreted as convergence.
+This is the current dense reference method, not a claim of scalable production
+optimization.
+
 #### 5.1 Linearized Equality-Constrained Least Squares
 
 At an SQP iterate, let
@@ -1490,6 +1615,24 @@ or qualification for future prediction.
 ---
 
 ### 6. Discrete Tangent-Linear and Adjoint Equations
+
+
+**Why this step?** Identifiability describes what measurements constrain,
+but qualification depends on what the remaining state errors do *after* the
+analysis window. Repeated nonlinear perturbation experiments alone are
+expensive and do not expose the full local sensitivity structure.
+
+**How does it answer the question?** Differentiate the same implicit discrete
+time-step residual. The tangent-linear equations propagate a small state
+perturbation forward; transpose systems propagate a scalar prediction's
+sensitivity backward. These are derivatives of the numerical model actually
+used for reconstruction and restart.
+
+**What do we learn?** We can identify directions that attenuate, persist, or
+amplify locally, and compute sensitivities efficiently. A linearized result
+does not establish nonlinear qualification. The backward recurrence is a
+mathematical derivation, not a claim that a separate production adjoint solver
+is complete.
 
 #### 6.1 Tangent-Linear Dynamics
 
@@ -1660,6 +1803,22 @@ inferred solely from these formulas.
 
 ### 7. Measurement Information and Identifiability
 
+
+**Why this step?** A small residual does not imply a uniquely reconstructed
+state. Multiple physically feasible trajectories can agree with the same
+limited measurement history.
+
+**How does it answer the question?** Restrict perturbations to the tangent
+space of the equality constraints. The singular values of the measurement
+Jacobian on that feasible subspace reveal locally resolved and unresolved
+directions. Under explicit noise assumptions, its Gram matrix also defines
+local information.
+
+**What do we learn?** We learn which feasible variations the available
+measurements distinguish, and which remain ambiguous. This is *local*
+identifiability, not a global uniqueness theorem. A singular information
+matrix does not yield a finite covariance in its null directions.
+
 #### 7.1 Physically Feasible Perturbations
 
 At a feasible reconstructed trajectory, let
@@ -1779,6 +1938,24 @@ those directions.
 ---
 
 ### 8. From Reconstruction Uncertainty to Prediction Uncertainty
+
+
+**Why this step?** Complete state identification may be unnecessary.
+A poorly measured perturbation can be harmless if it quickly disappears
+from the forecast, while a small unresolved perturbation may be dangerous
+if it strongly affects an engineering quantity.
+
+**How does it answer the question?** Combine feasible reconstruction
+perturbations with forward sensitivities of the predictions. Propagate
+defensible local covariance estimates when their assumptions hold, or
+maximize linearized prediction error over a specified uncertainty set.
+Compare the prediction sensitivity of a direction with its measurement
+sensitivity.
+
+**What do we learn?** The relevant notion is *prediction-weighted
+observability*: which unresolved directions matter to the forecast?
+Covariance propagation and ellipsoidal bounds are local approximations
+unless additional assumptions or nonlinear remainder bounds justify more.
 
 #### 8.1 Linearized Forecast Propagation
 
@@ -1917,6 +2094,22 @@ guaranteed engineering certificate.
 
 ### 9. Robust State Qualification
 
+
+**Why this step?** Synthetic truth is available in experiments, but the
+actual internal state of an operating pipeline is not. Moreover, a state
+that qualifies under one future control schedule may fail under another.
+
+**How does it answer the question?** Define a defensible set of possible
+current states and a specified set of future control histories. Compare
+nonlinear forecasts from the reconstructed state against forecasts from
+all admissible candidate states, or formulate a calibrated probabilistic
+acceptance condition under an explicit statistical model.
+
+**What do we learn?** This gives a route toward *prospective* engineering
+qualification. The guarantee is only as credible as the uncertainty set,
+control assumptions, and forward model. Computing robust bounds or
+calibrated probabilities is future research, not an R5.1 capability.
+
 #### 9.1 Dependence on Future Controls
 
 The current synthetic qualification metric
@@ -2041,6 +2234,22 @@ synthetic experiments.
 ---
 
 ### 10. Verification and Engineering Acceptance
+
+
+**Why this step?** Correct optimization and a correct numerical solver are
+necessary but not sufficient for an engineering decision. A report must
+explain which evidence supports acceptance and which assumptions limit it.
+
+**How does it answer the question?** Report numerical residuals,
+derivative checks, conservation defects, restart errors, candidate times,
+horizons, tolerances, measurement availability, future controls, and solver
+provenance separately. Apply the sampled persistent qualification criterion
+only to successful reconstructions and restarts.
+
+**What do we learn?** We obtain a reproducible, bounded statement about
+when the reconstructed state becomes useful for a *specified* engineering
+forecast. R5.2 must demonstrate a nontrivial transition from unacceptable
+to acceptable prediction under meaningful initial-state deficiencies.
 
 #### 10.1 Separate Numerical and Engineering Questions
 
