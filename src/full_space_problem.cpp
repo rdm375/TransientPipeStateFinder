@@ -399,6 +399,81 @@ FullSpaceProblemEvaluation FullSpaceProblem::evaluate(
     return result;
 }
 
+
+std::vector<double> FullSpaceProblem::measurement_residual(
+    const std::vector<double>& u) const
+{
+    const auto t = trajectory(u);
+
+    std::vector<double> result;
+
+    for (std::size_t k = 0;
+         k < configuration_.measurements.size(); ++k) {
+
+        const auto& measurement =
+            configuration_.measurements[k];
+
+        for (std::size_t c = 0; c < 4; ++c) {
+            if (!measurement.available[c])
+                continue;
+
+            const double value =
+                (t.reconstructed[k][c] -
+                 measurement.observed[c]) /
+                measurement.sigma[c];
+
+            if (!std::isfinite(value))
+                throw std::invalid_argument(
+                    "Nonfinite normalized measurement residual");
+
+            result.push_back(value);
+        }
+    }
+
+    return result;
+}
+
+std::vector<double> FullSpaceProblem::measurement_jvp(
+    const std::vector<double>& u,
+    const std::vector<double>& direction) const
+{
+    // Validate coordinates and their physical transformation.
+    const auto t = trajectory(u);
+    const auto physical_direction = expand_direction(direction);
+
+    const auto width = state_width(t.n);
+    const auto block = block_width(t.n);
+
+    std::vector<double> result;
+
+    for (std::size_t k = 0;
+         k < configuration_.measurements.size(); ++k) {
+
+        const auto& measurement =
+            configuration_.measurements[k];
+
+        const std::size_t reconstructed_offset =
+            k*block + width + 2;
+
+        for (std::size_t c = 0; c < 4; ++c) {
+            if (!measurement.available[c])
+                continue;
+
+            const double value =
+                physical_direction[reconstructed_offset+c] /
+                measurement.sigma[c];
+
+            if (!std::isfinite(value))
+                throw std::invalid_argument(
+                    "Nonfinite measurement directional derivative");
+
+            result.push_back(value);
+        }
+    }
+
+    return result;
+}
+
 std::vector<double> FullSpaceProblem::constraint_jvp(
     const std::vector<double>& u,
     const std::vector<double>& direction) const

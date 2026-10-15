@@ -61,6 +61,16 @@ public:
     FullSpaceProblemEvaluation evaluate(
         const std::vector<double>& u) const;
 
+    // Normalized residuals for available measurements only.
+    // Ordering: time level, then boundary channel.
+    std::vector<double> measurement_residual(
+        const std::vector<double>& u) const;
+
+    // Exact normalized measurement-residual JVP.
+    std::vector<double> measurement_jvp(
+        const std::vector<double>& u,
+        const std::vector<double>& direction) const;
+
     std::vector<double> constraint_jvp(
         const std::vector<double>& u,
         const std::vector<double>& direction) const;

@@ -247,13 +247,15 @@ endif()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 add_library(tpsf_dense_solver STATIC
-    src/dense_constrained_least_squares.cpp)
+    src/dense_constrained_least_squares.cpp
+    src/dense_full_space_subproblem.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 target_link_libraries(tpsf_dense_solver
-    PUBLIC Eigen3::Eigen)
+    PUBLIC Eigen3::Eigen
+    PRIVATE tpsf_forward)
 
 target_compile_features(tpsf_dense_solver
     PUBLIC cxx_std_20)
@@ -269,4 +271,18 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_dense_constrained_least_squares
         COMMAND tpsf_dense_constrained_least_squares_test)
+endif()
+
+
+# E2.4b.11b.1 — Verified dense full-space SQP assembly.
+add_executable(tpsf_dense_full_space_subproblem_test
+    tests/cpp/dense_full_space_subproblem_test.cpp)
+
+target_link_libraries(tpsf_dense_full_space_subproblem_test
+    PRIVATE tpsf_dense_solver tpsf_forward)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_dense_full_space_subproblem
+        COMMAND tpsf_dense_full_space_subproblem_test)
 endif()
