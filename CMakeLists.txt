@@ -261,7 +261,8 @@ add_library(tpsf_dense_solver STATIC
     src/pipeline_decision.cpp
     src/measurement_information.cpp
     src/forecast_directional_uncertainty.cpp
-    src/sensitivity_decay.cpp)
+    src/sensitivity_decay.cpp
+    src/decision_timescales.cpp)
 
 target_include_directories(tpsf_dense_solver
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -558,5 +559,24 @@ if(BUILD_TESTING)
     add_test(
         NAME tpsf_sensitivity_decay
         COMMAND tpsf_sensitivity_decay_test
+    )
+endif()
+
+
+# E5.6b: operational decision reliability timescales
+add_executable(
+    tpsf_decision_timescales_test
+    tests/cpp/decision_timescales_test.cpp
+)
+
+target_link_libraries(
+    tpsf_decision_timescales_test
+    PRIVATE tpsf_dense_solver
+)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_decision_timescales
+        COMMAND tpsf_decision_timescales_test
     )
 endif()
