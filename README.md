@@ -344,7 +344,7 @@ The full-space constrained nonlinear least-squares problem is
 ```math
 \boxed{
 \begin{aligned}
-\underset{\mathbf{z}}{\operatorname{minimize}}
+\min_{\mathbf{z}}
 \quad&
 \frac12
 \sum_{k=0}^{N}
