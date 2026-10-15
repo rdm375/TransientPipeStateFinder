@@ -369,3 +369,17 @@ if(BUILD_TESTING)
         NAME tpsf_forecast_continuation
         COMMAND tpsf_forecast_continuation_test)
 endif()
+
+# E4.2b — Dense diagnostic oracle for Jacobian structure,
+# numerical rank, and local identifiability.
+add_executable(tpsf_kkt_structure_diagnostic
+    tests/cpp/kkt_structure_diagnostic.cpp)
+
+target_link_libraries(tpsf_kkt_structure_diagnostic
+    PRIVATE tpsf_dense_solver)
+
+if(BUILD_TESTING)
+    add_test(
+        NAME tpsf_kkt_structure_diagnostic
+        COMMAND tpsf_kkt_structure_diagnostic)
+endif()
