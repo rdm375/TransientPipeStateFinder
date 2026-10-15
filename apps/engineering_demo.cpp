@@ -1143,6 +1143,7 @@ int main(int argc, char** argv)
         assessment.provenance.compiler =
             std::string(__VERSION__);
 
+        assessment.qualification = qualification;
         write_engineering_report(
             assessment,
             output);

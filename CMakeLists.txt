@@ -747,6 +747,10 @@ add_library(
     src/state_qualification.cpp
 )
 
+# Qualification is embedded in the unified engineering report.
+target_link_libraries(tpsf_engineering_report PUBLIC tpsf_state_qualification)
+
+
 target_include_directories(
     tpsf_state_qualification
     PUBLIC

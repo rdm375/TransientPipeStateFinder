@@ -188,6 +188,18 @@ std::string engineering_report_json(
     out << "{\n";
     out << "  \"schema\": \"tpsf.engineering-assessment.v1\",\n";
 
+    out << "  \"state_qualification\": ";
+    if (report.qualification) {
+        auto embedded = state_qualification_json(*report.qualification);
+        while (!embedded.empty() &&
+               (embedded.back() == '\n' || embedded.back() == '\r'))
+            embedded.pop_back();
+        out << embedded;
+    } else {
+        out << "null";
+    }
+    out << ",\n";
+
     out << "  \"provenance\": {\n";
     out << "    \"statefinder_revision\": "
         << quoted(p.statefinder_revision) << ",\n";
@@ -396,6 +408,48 @@ std::string engineering_report_markdown(
     out << "# TransientPipeStateFinder Engineering Assessment\n\n";
     out << "**Status:** Research demonstration; "
            "not an operational certificate.\n\n";
+
+    out << "## State qualification — primary engineering result\n\n";
+    if (report.qualification) {
+        const auto& qualification = *report.qualification;
+        out << "**Status:** "
+            << (qualification.qualified ? "QUALIFIED" : "NOT QUALIFIED")
+            << " (synthetic-reference experiment, not an operational certificate).\n\n";
+        out << "- Earliest persistently qualifying tested time: "
+            << optional_time(qualification.qualification_time_s) << "\n";
+        out << "- Forecast horizon: "
+            << qualification.options.restart_horizon_s << " s\n";
+        out << "- Pressure tolerance: "
+            << qualification.options.pressure_tolerance_pa << " Pa ("
+            << qualification.options.pressure_tolerance_pa / 6894.757293168
+            << " psi)\n";
+        out << "- Flow tolerance: "
+            << qualification.options.flow_tolerance_kg_s << " kg/s ("
+            << qualification.options.flow_tolerance_kg_s * 2.20462262185
+            << " lbm/s)\n";
+        out << "- Q = max(pressure error / pressure tolerance, "
+               "flow error / flow tolerance); accept when Q <= 1.\n\n";
+        out << "| Time (s) | Reconstruction | Restart | Pressure error (Pa) "
+               "| Flow error (kg/s) | Q | Accepted |\n";
+        out << "|---:|---|---|---:|---:|---:|---|\n";
+        for (const auto& sample : qualification.samples) {
+            out << "| " << sample.analysis_time_s
+                << " | " << (sample.reconstruction_converged ? "pass" : "fail")
+                << " | " << (sample.restart_succeeded ? "pass" : "fail")
+                << " | " << markdown_number(sample.pressure_error_pa)
+                << " | " << markdown_number(sample.flow_error_kg_s)
+                << " | " << markdown_number(sample.normalized_error)
+                << " | " << (sample.acceptable ? "yes" : "no") << " |\n";
+        }
+        out << "\nQualification is based on the tested candidate grid, "
+               "forecast horizon, tolerances, and specified future controls. "
+               "R5.1 uses noise-free same-model synthetic data with "
+               "restricted initial-state unknowns.\n\n";
+    } else {
+        out << "**NOT ASSESSED.** No state-qualification result supplied. "
+               "Optimizer convergence and decision reliability are "
+               "not substitutes for qualification.\n\n";
+    }
 
     out << "## Provenance\n\n";
     out << "- Statefinder revision: `"

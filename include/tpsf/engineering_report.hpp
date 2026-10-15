@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tpsf/state_qualification.hpp"
 #include "tpsf/statefinding_quality.hpp"
 #include "tpsf/pipeline_decision.hpp"
 
@@ -48,6 +49,7 @@ struct EngineeringScenario {
 };
 
 struct EngineeringReport {
+    std::optional<StateQualificationResult> qualification;
     EngineeringProvenance provenance;
     EngineeringScenario scenario;
 

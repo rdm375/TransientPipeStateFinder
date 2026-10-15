@@ -66,6 +66,24 @@ int main()
         "not a statistical confidence level")
         != std::string::npos);
 
+    assert(json.find("\"state_qualification\": null") != std::string::npos);
+    assert(markdown.find("NOT ASSESSED") != std::string::npos);
+
+    StateQualificationSample sample;
+    sample.analysis_time_s = 1.0;
+    sample.reconstruction_converged = true;
+    sample.restart_succeeded = true;
+    sample.pressure_error_pa = 1000.0;
+    sample.flow_error_kg_s = 0.01;
+    report.qualification = assess_state_qualification(
+        {sample}, StateQualificationOptions{});
+    const auto qualified_json = engineering_report_json(report);
+    const auto qualified_md = engineering_report_markdown(report);
+    assert(qualified_json.find("\"state_qualification\": {") != std::string::npos);
+    assert(qualified_json.find("\"qualification_status\": \"qualified\"") != std::string::npos);
+    assert(qualified_md.find("primary engineering result") != std::string::npos);
+    report.qualification.reset();
+
     // Rendering must be deterministic.
     assert(json == engineering_report_json(report));
     assert(markdown ==
